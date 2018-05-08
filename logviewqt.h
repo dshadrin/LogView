@@ -3,7 +3,8 @@
 
 #include <QtWidgets/QMainWindow>
 #include "ui_logviewqt.h"
-#include "logtablemodel.h"
+//#include "logtablemodel.h"
+#include "logmodel.h"
 
 class LogViewQt : public QMainWindow
 {
@@ -22,7 +23,7 @@ public slots:
 
 private:
     Ui::LogViewQtClass ui;
-    LogTableModel * model;
+    LogModel * model;
 };
 
 #endif // LOGVIEWQT_H

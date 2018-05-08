@@ -17,3 +17,11 @@ OBJECTS_DIR += release
 UI_DIR += ./GeneratedFiles
 RCC_DIR += ./GeneratedFiles
 include(LogViewQt.pri)
+
+win32 {
+    INCLUDEPATH += d:/dev/include/boost-1_67
+    LIBS += -Ld:/libs/boost_1_67_0/stage/lib  \
+            -lboost_filesystem-mgw53-mt-x32-1_67 \
+            -lboost_system-mgw53-mt-x32-1_67 \
+
+}

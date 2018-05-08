@@ -23,7 +23,7 @@ void LogViewQt::createModel( const QString& fname )
         ui.centralWidget->setModel( nullptr );
         delete model;
 
-        model = new LogTableModel( fname, nullptr );
+        model = new LogModel( fname, nullptr );
         QObject::connect( model, SIGNAL( changeModel( ) ), this, SLOT( ChangeTable( ) ) );
         ui.centralWidget->setModel( model );
         QObject::connect( ui.actionCRIT, SIGNAL( triggered( bool ) ), model, SLOT( switchCrit( bool ) ) );

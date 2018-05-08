@@ -8,9 +8,11 @@ message("You are running qmake on a generated .pro file. This may not work!")
 
 
 HEADERS += ./logviewqt.h \
-    ./logtablemodel.h
+    ./logtablemodel.h \
+    $$PWD/logmodel.h
 SOURCES += ./logtablemodel.cpp \
     ./logviewqt.cpp \
-    ./main.cpp
+    ./main.cpp \
+    $$PWD/logmodel.cpp
 FORMS += ./logviewqt.ui
 RESOURCES += logviewqt.qrc

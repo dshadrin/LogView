@@ -1,19 +1,9 @@
 cmake_minimum_required(VERSION 3.11)
 project(LogView LANGUAGES CXX)
 
-if(WIN32)
-  if(MSVC)
-    set(USED_QT_PATH "d:/Qt/Qt5.9.1/5.9.1/msvc2017_64")
-  elseif(MINGW)
-    set(USED_QT_PATH "d:/Qt/Qt5.9.1/5.10.1/mingw53_32")
-  endif()
-endif()
-
-set(ENV{CMAKE_PREFIX_PATH} "${USED_QT_PATH}/lib/cmake")
-message(STATUS "CMAKE_PREFIX_PATH: " $ENV{CMAKE_PREFIX_PATH})
-
-set(CMAKE_CXX_STANDARD 14)
-
+###
+# Boost configuration
+###
 if(MSVC)
   message(STATUS "Toolset: MSVC")
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
@@ -27,8 +17,24 @@ elseif(UNIX)
 endif()
 set(Boost_USE_MULTITHREADED ON)
 
-find_package(Boost COMPONENTS system filesystem REQUIRED)
+find_package(Boost COMPONENTS system filesystem iostreams REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
+
+###
+# Qt configuration
+###
+if(WIN32)
+  if(MSVC)
+    set(USED_QT_PATH "d:/Qt/5.10.1/msvc2017_64")
+  elseif(MINGW)
+    set(USED_QT_PATH "d:/Qt/5.10.1/mingw53_32")
+  endif()
+endif()
+
+set(ENV{CMAKE_PREFIX_PATH} "${USED_QT_PATH}/lib/cmake")
+message(STATUS "CMAKE_PREFIX_PATH: " $ENV{CMAKE_PREFIX_PATH})
+
+set(CMAKE_CXX_STANDARD 14)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -56,5 +62,11 @@ set(FORMS
 
 qt5_add_resources(RESOURCES_R ${RESOURCES})
 qt5_wrap_ui(FORM_H ${FORMS})
-add_executable(LogView ${SOURCES} ${FORM_H} ${RESOURCES_R})
+
+###
+# App configuration
+###
+set(DestinationDir ${LogView_SOURCE_DIR}/dist)
+add_executable(LogView WIN32 ${SOURCES} ${FORM_H} ${RESOURCES_R})
 target_link_libraries(LogView Qt5::Core Qt5::Gui Qt5::Widgets ${Boost_LIBRARIES})
+install(TARGETS LogView RUNTIME DESTINATION ${DestinationDir})

@@ -1,41 +1,41 @@
 
 #include "logmodel.h"
 #include <boost/filesystem.hpp>
-#include <cstdio>
+#include <sstream>
 
 LogModel::LogModel(const QString& fname, QObject *parent)
     : file_name(fname)
-    , buffer(nullptr)
 {
     bool status = false;
+    std::stringstream ss;
+    ss << std::endl;
+    std::string endOfStr = ss.str();
+    size_t endOfStrLen = endOfStr.length();
+
 
     if (boost::filesystem::exists(fname.toStdString()))
     {
         buffer_size = boost::filesystem::file_size(fname.toStdString());
-        buffer = new char[buffer_size];
-        FILE* in = fopen(fname.toStdString().c_str(), "rt");
-        if (in)
+        file.open(fname.toStdString(), buffer_size);
+        if (file.is_open())
         {
-            if (fread((void*)buffer, 1, buffer_size, in) == buffer_size)
+            const char * buffer = file.data();
+
+            // parse file
+            if (buffer[0] == '[') // check for correct log
             {
-                fclose(in);
-
-                // parse file
-                if (buffer[0] == '[') // check for correct log
+                DataValue dv = {nullptr, nullptr};
+                for (size_t pos = 0; pos < buffer_size; ++pos)
                 {
-                    DataValue dv = {nullptr, nullptr};
-                    for (size_t pos = 0; pos < buffer_size; ++pos)
-                    {
 
-                    }
-
-                    // set fonts
-                    font.setFamily("Courier New");
-                    font.setPointSize(12);
-                    fbold = font;
-                    fbold.setBold(true);
-                    status = true;
                 }
+
+                // set fonts
+                font.setFamily("Courier New");
+                font.setPointSize(12);
+                fbold = font;
+                fbold.setBold(true);
+                status = true;
             }
         }
     }
@@ -48,7 +48,7 @@ LogModel::LogModel(const QString& fname, QObject *parent)
 
 LogModel::~LogModel()
 {
-    delete[] buffer;
+    file.close();
 }
 
 int LogModel::rowCount( const QModelIndex & /*parent*/ ) const

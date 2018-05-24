@@ -3,6 +3,7 @@
 
 #include <QAbstractTableModel>
 #include <QFont>
+#include <boost/iostreams/device/mapped_file.hpp>
 
 class LogModel : public QAbstractTableModel
 {
@@ -33,7 +34,7 @@ private:
         const char* end;
     };
 
-    const char* buffer;
+    boost::iostreams::mapped_file_source file;
     size_t buffer_size;
     QVector<DataValue> vstorage;
     QVector<DataValue*> vdata;

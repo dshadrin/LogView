@@ -25,7 +25,6 @@ void LogViewQt::createModel( const QString& fname )
 
         model = new LogModel( fname, nullptr );
         QObject::connect( model, SIGNAL( changeModel( ) ), this, SLOT( ChangeTable( ) ) );
-        ui.centralWidget->setModel( model );
         QObject::connect( ui.actionCRIT, SIGNAL( triggered( bool ) ), model, SLOT( switchCrit( bool ) ) );
         QObject::connect( ui.actionERROR, SIGNAL( triggered( bool ) ), model, SLOT( switchErr( bool ) ) );
         QObject::connect( ui.actionWARN, SIGNAL( triggered( bool ) ), model, SLOT( switchWarn( bool ) ) );
@@ -36,10 +35,10 @@ void LogViewQt::createModel( const QString& fname )
         QObject::connect( ui.actionRPC_log, SIGNAL( triggered( bool ) ), model, SLOT( switchRpc( bool ) ) );
         QObject::connect( ui.actionTM_log, SIGNAL( triggered( bool ) ), model, SLOT( switchTm( bool ) ) );
 
-        ui.centralWidget->wordWrap( );
-        ui.centralWidget->verticalHeader( )->sectionResizeMode( QHeaderView::ResizeToContents );
-        ui.centralWidget->resizeColumnsToContents( );
-        ui.centralWidget->resizeRowsToContents( );
+        ui.centralWidget->setModel(model);
+        ui.centralWidget->setColumnWidth(0, 115);
+        ui.centralWidget->setColumnWidth(1, 40);
+        ui.centralWidget->setColumnWidth(2, 50);
 
         ui.actionCRIT->setChecked( true );
         ui.actionDEBUG->setChecked( true );
@@ -50,6 +49,11 @@ void LogViewQt::createModel( const QString& fname )
         ui.actionMonitor_Log->setChecked( true );
         ui.actionRPC_log->setChecked( true );
         ui.actionTM_log->setChecked( true );
+
+        ui.centralWidget->setWordWrap(true);
+        ui.centralWidget->setTextElideMode(Qt::ElideLeft);
+        ui.centralWidget->verticalHeader()->sectionResizeMode(QHeaderView::ResizeToContents);
+//        ui.centralWidget->resizeRowsToContents();
     }
 }
 

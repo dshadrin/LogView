@@ -51,11 +51,11 @@ void LogViewQt::createModel( const QString& fname )
         ui.actionTM_log->setChecked( true );
 
         ui.centralWidget->setWordWrap(true);
-        ui.centralWidget->setTextElideMode(Qt::ElideLeft);
-        ui.centralWidget->verticalHeader()->sectionResizeMode(QHeaderView::ResizeToContents);
-//        ui.centralWidget->resizeRowsToContents();
+        ui.centralWidget->resizeColumnsToContents();
+        ui.centralWidget->resizeRowsToContents();
     }
 }
+
 
 LogViewQt::~LogViewQt( )
 {

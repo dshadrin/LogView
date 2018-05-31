@@ -279,14 +279,7 @@ void LogModel::ResetData()
         {
             if (dv.flags & sev_mask)
             {
-                if (dv.flags & MON_MODULE)
-                {
-                    if (dv.flags & mon_mask)
-                    {
-                        vdata.push_back(&dv);
-                    }
-                }
-                else
+                if (!(dv.flags & MON_MODULE) || (dv.flags & mon_mask))
                 {
                     vdata.push_back(&dv);
                 }

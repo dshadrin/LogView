@@ -46,11 +46,13 @@ set(SOURCES
   main.cpp
   logmodel.cpp
   logviewqt.cpp
+  finddialog.cpp
 )
 
 set(HEADERS
   logmodel.h
   logviewqt.h
+  finddialog.h
 )
 
 set(RESOURCES
@@ -59,6 +61,7 @@ set(RESOURCES
 
 set(FORMS
   logviewqt.ui
+  finddialog.ui
 )
 
 qt5_add_resources(RESOURCES_R ${RESOURCES})
@@ -68,6 +71,6 @@ qt5_wrap_ui(FORM_H ${FORMS})
 # App configuration
 ###
 set(DestinationDir ${LogView_SOURCE_DIR}/dist)
-add_executable(LogView WIN32 ${SOURCES} ${FORM_H} ${RESOURCES_R})
+add_executable(LogView WIN32 ${SOURCES} ${HEADERS} ${FORM_H} ${RESOURCES_R})
 target_link_libraries(LogView Qt5::Core Qt5::Gui Qt5::Widgets ${Boost_LIBRARIES})
 install(TARGETS LogView RUNTIME DESTINATION ${DestinationDir})

@@ -3,8 +3,10 @@
 
 #include <QtWidgets/QMainWindow>
 #include "ui_logviewqt.h"
-//#include "logtablemodel.h"
 #include "logmodel.h"
+#include <boost/filesystem.hpp>
+
+extern QString confName;
 
 class LogViewQt : public QMainWindow
 {
@@ -16,14 +18,37 @@ public:
 
 private:
     void createModel( const QString& fname );
+    void readSettings();
+    void writeSettings();
+    void closeEvent(QCloseEvent *event) override;
+    void stModelFlags() const;
 
-public slots:
-	void ChangeTable();
+private slots:
+    void changeTable();
+    void resetRow(int row);
     void selectOpenFileName( );
+    void findText();
+    void findTextNext();
+    void findTextPrev();
+
+    void selectText();
+    void customContextMenuRequested(const QPoint &pos);
+
+
+signals:
+    int findRow(const QString& txt, int indBegin);
+    int findRowPrev(const QString& txt, int indBegin);
 
 private:
     Ui::LogViewQtClass ui;
     LogModel * model;
+
+    QMenu* selectMnu;
+    QAction* newSelectAct;
+
+    // stored find data
+    QString foundStr;
+    int foundRow;
 };
 
 #endif // LOGVIEWQT_H

@@ -5,6 +5,7 @@
 #include <string>
 #include <QColor>
 #include <QBrush>
+#include <boost/algorithm/string.hpp>
 
 const quint32 FULL_HEADER_LEN = 40;
 const quint32 LAST_HEADER_POS = 39;
@@ -37,6 +38,7 @@ LogModel::LogModel(const QString& fname, QObject *parent)
     , mod_mask(0x00FF0000)
     , mon_mask(0x0000FF00)
     , sev_mask(0x000000FF)
+    , tmr(Q_NULLPTR)
 {
     bool status = false;
     std::stringstream ss;
@@ -96,12 +98,14 @@ LogModel::LogModel(const QString& fname, QObject *parent)
                 }
 
                 // set fonts
-                font.setFamily("Consolas");
+                font.setFamily("Courier New");
                 font.setPointSize(10);
                 fbold = font;
                 fbold.setBold(true);
                 status = true;
-                ResetData();
+                tmr = new QTimer(this);
+                tmr->setInterval(100);
+                connect(tmr, SIGNAL(timeout()), this, SLOT(tickTimer()));
             }
         }
     }
@@ -135,6 +139,7 @@ QVariant LogModel::data( const QModelIndex &index, int role ) const
 {
     switch ( role )
     {
+    case Qt::EditRole:
     case Qt::DisplayRole:
         return HandleDisplayRole(index.column(), index.row());
 
@@ -149,9 +154,6 @@ QVariant LogModel::data( const QModelIndex &index, int role ) const
 
     case Qt::TextAlignmentRole:
         return Qt::AlignLeft + Qt::AlignVCenter;
-
-    case Qt::SizeHintRole:
-        return QVariant();
     }
 
     return QVariant( );
@@ -199,6 +201,7 @@ QVariant LogModel::HandleBackgroundRole(int col, int row) const
     if ( col == 3 )
     {
         const DataValue * const dv = vdata[row];
+        indxs.push_back(row);
 
         if ( dv->flags & SEVERITY_WARN )
             return QBrush( QColor(255, 191, 223) );
@@ -271,8 +274,10 @@ QVariant LogModel::HandleHeaderDisplayRole(Qt::Orientation orientation, int sect
 //////////////////////////////////////////////////////////////////////////
 void LogModel::ResetData()
 {
+    tmr->stop();
     beginResetModel();
     vdata.clear();
+    indxs.clear();
     for (DataValue& dv : vstorage)
     {
         if (dv.flags & mod_mask)
@@ -294,6 +299,17 @@ void LogModel::ResetData()
         }
     }
     endResetModel();
+    tmr->start();
+    changeModel();
+}
+
+//////////////////////////////////////////////////////////////////////////
+Qt::ItemFlags LogModel::flags(const QModelIndex & index) const
+{
+    Qt::ItemFlags val = Qt::ItemIsEnabled;
+    val |= Qt::ItemIsSelectable;
+    val |= Qt::ItemIsEditable;
+    return val;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -377,6 +393,12 @@ void LogModel::SetFlags(DataValue& dv)
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchCrit(bool check)
 {
+    SetFlagCrit(check);
+    ResetData();
+}
+
+void LogModel::SetFlagCrit(bool check)
+{
     if (check)
     {
         sev_mask |= SEVERITY_CRIT;
@@ -385,11 +407,16 @@ void LogModel::switchCrit(bool check)
     {
         sev_mask &= ~SEVERITY_CRIT;
     }
-    ResetData();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchErr(bool check)
+{
+    SetFlagError(check);
+    ResetData();
+}
+
+void LogModel::SetFlagError(bool check)
 {
     if (check)
     {
@@ -399,11 +426,16 @@ void LogModel::switchErr(bool check)
     {
         sev_mask &= ~SEVERITY_ERR;
     }
-    ResetData();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchWarn(bool check)
+{
+    SetFlagWarn(check);
+    ResetData();
+}
+
+void LogModel::SetFlagWarn(bool check)
 {
     if (check)
     {
@@ -413,11 +445,16 @@ void LogModel::switchWarn(bool check)
     {
         sev_mask &= ~SEVERITY_WARN;
     }
-    ResetData();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchTest(bool check)
+{
+    SetFlagTest(check);
+    ResetData();
+}
+
+void LogModel::SetFlagTest(bool check)
 {
     if (check)
     {
@@ -427,11 +464,16 @@ void LogModel::switchTest(bool check)
     {
         sev_mask &= ~SEVERITY_TEST;
     }
-    ResetData();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchInfo(bool check)
+{
+    SetFlagInfo(check);
+    ResetData();
+}
+
+void LogModel::SetFlagInfo(bool check)
 {
     if (check)
     {
@@ -441,11 +483,16 @@ void LogModel::switchInfo(bool check)
     {
         sev_mask &= ~SEVERITY_INFO;
     }
-    ResetData();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchDbg(bool check)
+{
+    SetFlagDebug(check);
+    ResetData();
+}
+
+void LogModel::SetFlagDebug(bool check)
 {
     if (check)
     {
@@ -455,11 +502,16 @@ void LogModel::switchDbg(bool check)
     {
         sev_mask &= ~SEVERITY_DEBUG;
     }
-    ResetData();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchMo1(bool check)
+{
+    SetFlagMo1(check);
+    ResetData();
+}
+
+void LogModel::SetFlagMo1(bool check)
 {
     if (check)
     {
@@ -469,11 +521,16 @@ void LogModel::switchMo1(bool check)
     {
         mon_mask &= ~MON_LINE1;
     }
-    ResetData();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchMo2(bool check)
+{
+    SetFlagMo2(check);
+    ResetData();
+}
+
+void LogModel::SetFlagMo2(bool check)
 {
     if (check)
     {
@@ -483,11 +540,16 @@ void LogModel::switchMo2(bool check)
     {
         mon_mask &= ~MON_LINE2;
     }
-    ResetData();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchMo3(bool check)
+{
+    SetFlagMo3(check);
+    ResetData();
+}
+
+void LogModel::SetFlagMo3(bool check)
 {
     if (check)
     {
@@ -497,11 +559,16 @@ void LogModel::switchMo3(bool check)
     {
         mon_mask &= ~MON_LINE3;
     }
-    ResetData();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchMo4(bool check)
+{
+    SetFlagMo4(check);
+    ResetData();
+}
+
+void LogModel::SetFlagMo4(bool check)
 {
     if (check)
     {
@@ -511,11 +578,16 @@ void LogModel::switchMo4(bool check)
     {
         mon_mask &= ~MON_LINE4;
     }
-    ResetData();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchMon(bool check)
+{
+    SetFlagMon(check);
+    ResetData();
+}
+
+void LogModel::SetFlagMon(bool check)
 {
     if (check)
     {
@@ -525,11 +597,16 @@ void LogModel::switchMon(bool check)
     {
         mod_mask &= ~MON_MODULE;
     }
-    ResetData();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchRpc(bool check)
+{
+    SetFlagRpc(check);
+    ResetData();
+}
+
+void LogModel::SetFlagRpc(bool check)
 {
     if (check)
     {
@@ -539,11 +616,16 @@ void LogModel::switchRpc(bool check)
     {
         mod_mask &= ~TEST_MODULE;
     }
-    ResetData();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchTm(bool check)
+{
+    SetFlagTm(check);
+    ResetData();
+}
+
+void LogModel::SetFlagTm(bool check)
 {
     if (check)
     {
@@ -553,11 +635,49 @@ void LogModel::switchTm(bool check)
     {
         mod_mask &= ~RTM_MODULE;
     }
-    ResetData();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void LogModel::switchZlg(bool check)
+{
+    SetFlagZlg(check);
+    ResetData();
+}
+
+void LogModel::tickTimer()
+{
+    int count = 50;
+    while (!indxs.empty() && count--)
+    {
+        resetRow(indxs.front());
+        indxs.pop_front();
+    }
+    indxs.clear();
+}
+
+int LogModel::findRow(const QString& txt, int indBegin)
+{
+    for (int idx = indBegin; idx < vdata.size(); ++idx)
+    {
+        std::string str(vdata[idx]->begin + BEGIN_LOG_STRING_OFFSET, vdata[idx]->end);
+        if (boost::algorithm::contains(str, txt))
+            return idx;
+    }
+    return -1;
+}
+
+int LogModel::findRowPrev(const QString& txt, int indBegin)
+{
+    for (int idx = indBegin; idx >= 0; --idx)
+    {
+        std::string str(vdata[idx]->begin + BEGIN_LOG_STRING_OFFSET, vdata[idx]->end);
+        if (boost::algorithm::contains(str, txt))
+            return idx;
+    }
+    return -1;
+}
+
+void LogModel::SetFlagZlg(bool check)
 {
     if (check)
     {
@@ -567,6 +687,5 @@ void LogModel::switchZlg(bool check)
     {
         mod_mask &= ~ZLG_MODULE;
     }
-    ResetData();
 }
 

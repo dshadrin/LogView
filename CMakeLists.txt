@@ -37,10 +37,9 @@ if(WIN32)
   elseif(MINGW)
     set(USED_QT_PATH "d:/Qt/5.10.1/mingw53_32")
   endif()
+  set(ENV{CMAKE_PREFIX_PATH} "${USED_QT_PATH}/lib/cmake")
+  message(STATUS "CMAKE_PREFIX_PATH: " $ENV{CMAKE_PREFIX_PATH})
 endif()
-
-set(ENV{CMAKE_PREFIX_PATH} "${USED_QT_PATH}/lib/cmake")
-message(STATUS "CMAKE_PREFIX_PATH: " $ENV{CMAKE_PREFIX_PATH})
 
 set(CMAKE_CXX_STANDARD 14)
 

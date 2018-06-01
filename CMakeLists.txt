@@ -42,11 +42,10 @@ if(WIN32)
 endif()
 
 set(CMAKE_CXX_STANDARD 14)
-
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Qt5 COMPONENTS Gui Core Widgets)
+find_package(Qt5 COMPONENTS Gui Core Widgets REQUIRED)
 
 set(SOURCES
   main.cpp

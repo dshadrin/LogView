@@ -16,6 +16,9 @@
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
+  <property name="contextMenuPolicy">
+   <enum>Qt::DefaultContextMenu</enum>
+  </property>
   <property name="windowTitle">
    <string>LogViewQt</string>
   </property>
@@ -35,6 +38,9 @@
      <family>Consolas</family>
      <pointsize>10</pointsize>
     </font>
+   </property>
+   <property name="contextMenuPolicy">
+    <enum>Qt::CustomContextMenu</enum>
    </property>
    <property name="sizeAdjustPolicy">
     <enum>QAbstractScrollArea::AdjustToContents</enum>
@@ -99,12 +105,10 @@
     </property>
     <addaction name="actionAbout_Qt"/>
    </widget>
-   <widget class="QMenu" name="menuEdit">
+   <widget class="QMenu" name="menuFilters">
     <property name="title">
-     <string>Edit</string>
+     <string>Filters</string>
     </property>
-    <addaction name="actionResize"/>
-    <addaction name="separator"/>
     <addaction name="actionCRIT"/>
     <addaction name="actionERROR"/>
     <addaction name="actionWARN"/>
@@ -113,11 +117,26 @@
     <addaction name="actionDEBUG"/>
     <addaction name="separator"/>
     <addaction name="actionMonitor_Log"/>
-    <addaction name="actionRPC_log"/>
+    <addaction name="actionTEST_log"/>
     <addaction name="actionTM_log"/>
+    <addaction name="actionZLG_log"/>
+    <addaction name="separator"/>
+    <addaction name="actionMonitor_1_Log"/>
+    <addaction name="actionMonitor_2_Log"/>
+    <addaction name="actionMonitor_3_Log"/>
+    <addaction name="actionMonitor_4_Log"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+    <addaction name="actionFind"/>
+    <addaction name="actionNextFind"/>
+    <addaction name="actionPrevFind"/>
    </widget>
    <addaction name="menuFile"/>
-   <addaction name="menuEdit"/>
+   <addaction name="menuFilters"/>
+   <addaction name="menuView"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -137,11 +156,12 @@
     <bool>false</bool>
    </attribute>
    <addaction name="actionOpen"/>
-   <addaction name="actionResize"/>
+   <addaction name="actionFind"/>
    <addaction name="separator"/>
    <addaction name="actionMonitor_Log"/>
-   <addaction name="actionRPC_log"/>
+   <addaction name="actionTEST_log"/>
    <addaction name="actionTM_log"/>
+   <addaction name="actionZLG_log"/>
    <addaction name="separator"/>
    <addaction name="actionDEBUG"/>
    <addaction name="actionINFO"/>
@@ -149,6 +169,11 @@
    <addaction name="actionWARN"/>
    <addaction name="actionERROR"/>
    <addaction name="actionCRIT"/>
+   <addaction name="separator"/>
+   <addaction name="actionMonitor_1_Log"/>
+   <addaction name="actionMonitor_2_Log"/>
+   <addaction name="actionMonitor_3_Log"/>
+   <addaction name="actionMonitor_4_Log"/>
   </widget>
   <action name="actionOpen">
    <property name="icon">
@@ -321,7 +346,7 @@
     <string>Alt+M</string>
    </property>
   </action>
-  <action name="actionRPC_log">
+  <action name="actionTEST_log">
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -329,7 +354,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>RPC Log</string>
+    <string>TEST Log</string>
    </property>
    <property name="toolTip">
     <string>Tooggle RPC modules messages</string>
@@ -377,6 +402,98 @@
    </property>
    <property name="toolTip">
     <string>Tooggle TM modules messages</string>
+   </property>
+  </action>
+  <action name="actionZLG_log">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>ZLG Log</string>
+   </property>
+   <property name="toolTip">
+    <string>Tooggle Zlog modules messages</string>
+   </property>
+  </action>
+  <action name="actionMonitor_1_Log">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Monitor 1</string>
+   </property>
+   <property name="toolTip">
+    <string>Tooggle Monotor 1 modules messages</string>
+   </property>
+  </action>
+  <action name="actionMonitor_2_Log">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Monitor 2</string>
+   </property>
+   <property name="toolTip">
+    <string>Tooggle Monotor 2 modules messages</string>
+   </property>
+  </action>
+  <action name="actionMonitor_3_Log">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Monitor 3</string>
+   </property>
+   <property name="toolTip">
+    <string>Tooggle Monotor 3 modules messages</string>
+   </property>
+  </action>
+  <action name="actionMonitor_4_Log">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Monitor 4</string>
+   </property>
+   <property name="toolTip">
+    <string>Tooggle Monotor 4 modules messages</string>
+   </property>
+  </action>
+  <action name="actionFind">
+   <property name="icon">
+    <iconset resource="logviewqt.qrc">
+     <normaloff>:/LogViewQt/Resources/binoculars.png</normaloff>:/LogViewQt/Resources/binoculars.png</iconset>
+   </property>
+   <property name="text">
+    <string>Find...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+F</string>
+   </property>
+  </action>
+  <action name="actionNextFind">
+   <property name="text">
+    <string>Next Find</string>
+   </property>
+   <property name="shortcut">
+    <string>F3</string>
+   </property>
+  </action>
+  <action name="actionPrevFind">
+   <property name="text">
+    <string>Prev Find</string>
+   </property>
+   <property name="shortcut">
+    <string>F4</string>
    </property>
   </action>
  </widget>

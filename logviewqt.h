@@ -8,6 +8,8 @@
 
 extern QString confName;
 
+class QTimer;
+
 class LogViewQt : public QMainWindow
 {
     Q_OBJECT
@@ -22,18 +24,21 @@ private:
     void writeSettings();
     void closeEvent(QCloseEvent *event) override;
     void stModelFlags() const;
+    void findInTable(int fromRow);
 
 private slots:
     void changeTable();
     void resetRow(int row);
     void selectOpenFileName( );
     void findText();
+    void findTextCurent();
     void findTextNext();
     void findTextPrev();
 
     void selectText();
     void customContextMenuRequested(const QPoint &pos);
 
+    void selectTickTimer();
 
 signals:
     int findRow(const QString& txt, int indBegin);
@@ -47,6 +52,7 @@ private:
     QAction* newSelectAct;
 
     // stored find data
+    QTimer* checkSelectTimer;
     QString foundStr;
     int foundRow;
 };

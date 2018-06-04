@@ -131,6 +131,7 @@
      <string>View</string>
     </property>
     <addaction name="actionFind"/>
+    <addaction name="actionFindCurrent"/>
     <addaction name="actionNextFind"/>
     <addaction name="actionPrevFind"/>
    </widget>
@@ -206,7 +207,7 @@
   </action>
   <action name="actionResize">
    <property name="icon">
-    <iconset resource="logviewqt.qrc">
+    <iconset>
      <normaloff>:/LogViewQt/Resources/zoom_in.png</normaloff>:/LogViewQt/Resources/zoom_in.png</iconset>
    </property>
    <property name="text">
@@ -494,6 +495,14 @@
    </property>
    <property name="shortcut">
     <string>F4</string>
+   </property>
+  </action>
+  <action name="actionFindCurrent">
+   <property name="text">
+    <string>Find from current position</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+F</string>
    </property>
   </action>
  </widget>

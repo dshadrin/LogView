@@ -3,6 +3,7 @@
 #include <QFileDialog>
 #include <QSettings>
 #include <QtWidgets>
+#include <QTimer>
 
 QString confName;
 
@@ -15,8 +16,10 @@ LogViewQt::LogViewQt( const QString& fname, QWidget *parent)
 	QObject::connect(ui.actionAbout_Qt, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
     QObject::connect(ui.actionOpen, SIGNAL(triggered()), this, SLOT(selectOpenFileName()));
     QObject::connect(ui.actionFind, SIGNAL(triggered()), this, SLOT(findText()));
+    QObject::connect(ui.actionFindCurrent, SIGNAL(triggered()), this, SLOT(findTextCurent()));
     QObject::connect(ui.actionNextFind, SIGNAL(triggered()), this, SLOT(findTextNext()));
     QObject::connect(ui.actionPrevFind, SIGNAL(triggered()), this, SLOT(findTextPrev()));
+    
     readSettings();
 
     const QIcon newIcon(":/LogViewQt/Resources/select.png");
@@ -28,6 +31,10 @@ LogViewQt::LogViewQt( const QString& fname, QWidget *parent)
     connect(ui.centralWidget, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(customContextMenuRequested(const QPoint&)));
 
     createModel( fname );
+
+    checkSelectTimer = new QTimer(this);
+    checkSelectTimer->setInterval(300);
+    connect(checkSelectTimer, SIGNAL(timeout()), this, SLOT(selectTickTimer()));
 }
 
 void LogViewQt::createModel( const QString& fname )
@@ -75,7 +82,6 @@ void LogViewQt::changeTable()
 {
     ui.centralWidget->setWordWrap(true);
     ui.centralWidget->resizeColumnsToContents();
-//    ui.centralWidget->resizeRowsToContents();
 }
 
 void LogViewQt::resetRow(int row)
@@ -93,7 +99,7 @@ void LogViewQt::selectOpenFileName( )
     }
 }
 
-void LogViewQt::findText()
+void LogViewQt::findInTable(int fromRow)
 {
     QScopedPointer<FDialog> dlg(new FDialog(Q_NULLPTR));
 
@@ -104,17 +110,34 @@ void LogViewQt::findText()
         {
             QString fStr = dlg->getText();
             setCursor(Qt::WaitCursor);
-            int row = findRow(fStr, 0);
+            int row = findRow(fStr, fromRow);
             setCursor(Qt::ArrowCursor);
             if (row >= 0)
             {
                 foundStr = fStr;
                 foundRow = row;
-                QModelIndex idx = model->index(row, 1);
+                QModelIndex idx = model->index(row, 3);
                 ui.centralWidget->setCurrentIndex(idx);
+                checkSelectTimer->start();
             }
         }
     }
+}
+
+void LogViewQt::findText()
+{
+    findInTable(0);
+}
+
+void LogViewQt::findTextCurent()
+{
+    QModelIndex idx = ui.centralWidget->selectionModel()->currentIndex();
+    int currentRow = 0;
+    if (idx.isValid())
+    {
+        currentRow = idx.row() + 1;
+    }
+    findInTable(currentRow);
 }
 
 void LogViewQt::findTextNext()
@@ -127,6 +150,7 @@ void LogViewQt::findTextNext()
         foundRow = row;
         QModelIndex idx = model->index(row, 1);
         ui.centralWidget->setCurrentIndex(idx);
+        checkSelectTimer->start();
     }
 }
 
@@ -142,6 +166,7 @@ void LogViewQt::findTextPrev()
             foundRow = row;
             QModelIndex idx = model->index(row, 1);
             ui.centralWidget->setCurrentIndex(idx);
+            checkSelectTimer->start();
         }
     }
 }
@@ -151,10 +176,32 @@ void LogViewQt::customContextMenuRequested(const QPoint &pos)
     selectMnu->exec(ui.centralWidget->mapToGlobal(pos));
 }
 
+void LogViewQt::selectTickTimer()
+{
+    checkSelectTimer->stop();
+    int firstRow = ui.centralWidget->rowAt(0);
+    int lastRow = ui.centralWidget->rowAt(ui.centralWidget->height());
+
+    if (!(firstRow <= foundRow && lastRow > foundRow))
+    {
+        foundRow = firstRow;
+        QModelIndex idx = model->index(foundRow, 1);
+        ui.centralWidget->setCurrentIndex(idx);
+        findTextNext();
+    }
+}
+
 void LogViewQt::selectText()
 {
-    QModelIndex index = ui.centralWidget->selectionModel()->currentIndex();
-    QString data = model->data(index, Qt::DisplayRole).toString();
+    QItemSelectionModel* selection = ui.centralWidget->selectionModel();
+    int curColumn = selection->currentIndex().column();
+    QModelIndexList selList = selection->selectedRows(curColumn);
+    QString data;
+    for (auto& sel : selList)
+    {
+        data.append(model->data(sel, Qt::DisplayRole).toString());
+        data.append("\n");
+    }
     QClipboard *cb = qApp->clipboard();
     cb->setText(data);
 }

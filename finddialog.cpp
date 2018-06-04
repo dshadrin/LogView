@@ -13,6 +13,7 @@ FDialog::FDialog(QWidget *parent)
     ui.setupUi(this);
     setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint | Qt::WindowSystemMenuHint);
     setAttribute(Qt::WA_CustomWhatsThis);
+    ui.lineEdit->setFocus();
 }
 
 FDialog::~FDialog()

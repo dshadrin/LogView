@@ -1,21 +1,64 @@
+#define _SILENCE_FPOS_SEEKPOS_DEPRECATION_WARNING
 
 #include "logmodel.h"
 #include <boost/filesystem.hpp>
 #include <sstream>
+#include <fstream>
 #include <string>
 #include <QColor>
 #include <QBrush>
 #include <boost/algorithm/string.hpp>
+#include <boost/regex.hpp>
 
-const quint32 FULL_HEADER_LEN = 40;
-const quint32 LAST_HEADER_POS = 39;
-const quint32 BEGIN_TIMESTAMP_OFFSET = 13;
-const quint32 TIMESTAMP_LEN = 15;
-const quint32 BEGIN_MODULE_NAME_OFFSET = 30;
-const quint32 MODULE_NAME_LEN = 3;
-const quint32 BEGIN_SEVERITY_OFFSET = 35;
-const quint32 SEVERITY_LEN = 4;
-const quint32 BEGIN_LOG_STRING_OFFSET = 43;
+quint32 FULL_HEADER_LEN = 40;
+quint32 LAST_HEADER_POS = 39;
+quint32 BEGIN_TIMESTAMP_OFFSET = 13;
+quint32 TIMESTAMP_LEN = 15;
+quint32 BEGIN_MODULE_NAME_OFFSET = 30;
+quint32 MODULE_NAME_LEN = 3;
+quint32 BEGIN_SEVERITY_OFFSET = 35;
+quint32 SEVERITY_LEN = 4;
+quint32 BEGIN_LOG_STRING_OFFSET = 43;
+
+bool LogModel::AnaliseFileFormat(const QString& fName, size_t fSize)
+{
+    bool status = false;
+
+    try
+    {
+        std::ifstream ifs(fName.toStdString(), std::ios::binary);
+        const size_t blockSize = std::min<size_t>(100, fSize);
+        std::string line(blockSize, '\0');
+        ifs.read(&line[0], blockSize);
+        ifs.close();
+
+        boost::regex expr{ "^((\\[([A-Za-z0-9 :.-]+)\\]\\[([A-Z ]+)\\]\\[([A-Z ]+)\\]) - )" };
+        boost::smatch what;
+        if (boost::regex_search(line, what, expr))
+        {
+            BEGIN_LOG_STRING_OFFSET = what[1].length();
+            FULL_HEADER_LEN = what[2].length();
+            TIMESTAMP_LEN = what[3].length();
+            MODULE_NAME_LEN = what[4].length();
+            SEVERITY_LEN = what[5].length();
+            quint32 tsLen = 0;
+
+            LAST_HEADER_POS = FULL_HEADER_LEN - 1;
+            BEGIN_TIMESTAMP_OFFSET = TIMESTAMP_LEN > 15 ? 13 : 1;
+            tsLen = TIMESTAMP_LEN > 15 ? 15 : TIMESTAMP_LEN;
+            BEGIN_MODULE_NAME_OFFSET = TIMESTAMP_LEN + 3;
+            BEGIN_SEVERITY_OFFSET = TIMESTAMP_LEN + MODULE_NAME_LEN + 5;
+            TIMESTAMP_LEN = tsLen;
+            status = true;
+        }
+    }
+    catch (const std::exception&)
+    {
+
+    }
+    
+    return status;
+}
 
 const quint32 SEVERITY_CRIT = 0x00000001;
 const quint32 SEVERITY_ERR = 0x00000002;
@@ -49,63 +92,66 @@ LogModel::LogModel(const QString& fname, QObject *parent)
     if (boost::filesystem::exists(fname.toStdString()))
     {
         buffer_size = boost::filesystem::file_size(fname.toStdString());
-        file.open(fname.toStdString(), buffer_size);
-        if (file.is_open())
+        if (AnaliseFileFormat(fname, buffer_size))
         {
-            const char * buffer = file.data();
-            const char * const buffer_end = buffer + buffer_size;
-
-            // parse file
-            if (buffer[0] == '[') // check for correct log
+            file.open(fname.toStdString(), buffer_size);
+            if (file.is_open())
             {
-                DataValue dv = {nullptr, nullptr};
-                for (size_t pos = 0; pos < buffer_size; ++pos)
+                const char * buffer = file.data();
+                const char * const buffer_end = buffer + buffer_size;
+
+                // parse file
+                if (buffer[0] == '[') // check for correct log
                 {
-                    if ((buffer[pos] == '[') &&
-                        (buffer + pos + BEGIN_LOG_STRING_OFFSET) <= buffer_end &&
-                        (buffer[pos + LAST_HEADER_POS] == ']'))
+                    DataValue dv = { nullptr, nullptr };
+                    for (size_t pos = 0; pos < buffer_size; ++pos)
                     {
-                        dv.begin = buffer + pos;
-                        pos += BEGIN_LOG_STRING_OFFSET;
-                        dv.end = buffer + pos;
-                        SetFlags(dv);
-                    }
-                    else if (buffer[pos] != '\r' && buffer[pos] != '\n')
-                    {
-                        ++dv.end;
-                    }
-                    else
-                    {
-                        while (pos < buffer_size && (buffer[pos] == '\r' || buffer[pos] == '\n')) ++pos;
-                        if (((buffer[pos] == '[') &&
-                             (buffer + pos + BEGIN_LOG_STRING_OFFSET) <= buffer_end &&
-                             (buffer[pos + LAST_HEADER_POS] == ']')))
+                        if ((buffer[pos] == '[') &&
+                            (buffer + pos + BEGIN_LOG_STRING_OFFSET) <= buffer_end &&
+                            (buffer[pos + LAST_HEADER_POS] == ']'))
                         {
-                            ++dv.end;
-                            vstorage.push_back(dv);
-                            --pos;
+                            dv.begin = buffer + pos;
+                            pos += BEGIN_LOG_STRING_OFFSET;
+                            dv.end = buffer + pos;
+                            SetFlags(dv);
                         }
-                        else if (pos >= buffer_size)
+                        else if (buffer[pos] != '\r' && buffer[pos] != '\n')
                         {
                             ++dv.end;
-                            vstorage.push_back(dv);
                         }
                         else
                         {
-                            dv.end = buffer + pos;
+                            while (pos < buffer_size && (buffer[pos] == '\r' || buffer[pos] == '\n')) ++pos;
+                            if (((buffer[pos] == '[') &&
+                                (buffer + pos + BEGIN_LOG_STRING_OFFSET) <= buffer_end &&
+                                 (buffer[pos + LAST_HEADER_POS] == ']')))
+                            {
+                                ++dv.end;
+                                vstorage.push_back(dv);
+                                --pos;
+                            }
+                            else if (pos >= buffer_size)
+                            {
+                                ++dv.end;
+                                vstorage.push_back(dv);
+                            }
+                            else
+                            {
+                                dv.end = buffer + pos;
+                            }
                         }
                     }
-                }
 
-                // set fonts
-                font.setFamily("Courier New");
-                font.setPointSize(10);
-                fbold = font;
-                fbold.setBold(true);
-                status = true;
-                tmr = new QTimer(this);
-                tmr->setInterval(100);
-                connect(tmr, SIGNAL(timeout()), this, SLOT(tickTimer()));
+                    // set fonts
+                    font.setFamily("Courier New");
+                    font.setPointSize(10);
+                    fbold = font;
+                    fbold.setBold(true);
+                    status = true;
+                    tmr = new QTimer(this);
+                    tmr->setInterval(100);
+                    connect(tmr, SIGNAL(timeout()), this, SLOT(tickTimer()));
+                }
             }
         }
     }
@@ -362,11 +408,15 @@ void LogModel::SetFlags(DataValue& dv)
                 dv.flags |= MON_LINE4;
                 monFlag = true;
             }
+        }
 
-            if (monFlag)
-            {
-                dv.flags |= MON_MODULE;
-            }
+        if (monFlag)
+        {
+            dv.flags |= MON_MODULE;
+        }
+        else
+        {
+            dv.flags |= TEST_MODULE;
         }
     }
     else if (memcmp(modPtr, "TM ", MODULE_NAME_LEN) == 0)
@@ -652,7 +702,7 @@ int LogModel::findRow(const QString& txt, int indBegin)
 {
     for (int idx = indBegin; idx < vdata.size(); ++idx)
     {
-        std::string str(vdata[idx]->begin + BEGIN_LOG_STRING_OFFSET, vdata[idx]->end);
+        std::string str(vdata[idx]->begin + BEGIN_TIMESTAMP_OFFSET, vdata[idx]->end);
         if (boost::algorithm::contains(str, txt))
             return idx;
     }
@@ -663,7 +713,7 @@ int LogModel::findRowPrev(const QString& txt, int indBegin)
 {
     for (int idx = indBegin; idx >= 0; --idx)
     {
-        std::string str(vdata[idx]->begin + BEGIN_LOG_STRING_OFFSET, vdata[idx]->end);
+        std::string str(vdata[idx]->begin + BEGIN_TIMESTAMP_OFFSET, vdata[idx]->end);
         if (boost::algorithm::contains(str, txt))
             return idx;
     }

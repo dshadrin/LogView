@@ -32,7 +32,7 @@ bool LogModel::AnaliseFileFormat(const QString& fName, size_t fSize)
         ifs.read(&line[0], blockSize);
         ifs.close();
 
-        boost::regex expr{ "^((\\[([A-Za-z0-9 :.-]+)\\]\\[([A-Z ]+)\\]\\[([A-Z ]+)\\]) - )" };
+        boost::regex expr{ "^((\\[([A-Za-z0-9 :.-]+)\\]\\[([A-Z0-9 ]+)\\]\\[([A-Z ]+)\\]) - )" };
         boost::smatch what;
         if (boost::regex_search(line, what, expr))
         {

@@ -4,6 +4,7 @@
 #include <QSettings>
 #include <QtWidgets>
 #include <QTimer>
+#include <boost/filesystem.hpp>
 
 QString confName;
 
@@ -29,6 +30,13 @@ LogViewQt::LogViewQt( const QString& fname, QWidget *parent)
     connect(newSelectAct, SIGNAL(triggered()), this, SLOT(selectText()));
     selectMnu->addAction(newSelectAct);
     connect(ui.centralWidget, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(customContextMenuRequested(const QPoint&)));
+
+    if (!fname.isEmpty())
+    {
+        QSettings settings(confName, QSettings::IniFormat, Q_NULLPTR);
+        boost::filesystem::path p = boost::filesystem::absolute(boost::filesystem::path(fname.toStdString())).parent_path();
+        settings.setValue("FilesFolder", QString::fromStdString(p.string()));
+    }
 
     createModel( fname );
 
@@ -91,10 +99,15 @@ void LogViewQt::resetRow(int row)
 
 void LogViewQt::selectOpenFileName( )
 {
-    QString fname = QFileDialog::getOpenFileName( nullptr, "Open File ...", "", "*.elog *.log" );
+    QSettings settings(confName, QSettings::IniFormat, Q_NULLPTR);
+    QString folder = settings.value("FilesFolder", QDir::currentPath()).toString();
+    QString fname = QFileDialog::getOpenFileName( nullptr, "Open File ...", folder, "*.elog *.log" );
+
     QFile f( fname );
     if ( f.exists( ) )
     {
+        boost::filesystem::path p = boost::filesystem::absolute(boost::filesystem::path(fname.toStdString())).parent_path();
+        settings.setValue("FilesFolder", QString::fromStdString(p.string()));
         createModel( fname );
     }
 }

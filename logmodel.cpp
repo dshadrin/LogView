@@ -383,47 +383,31 @@ void LogModel::SetFlags(DataValue& dv)
     }
 
     const char * const modPtr = dv.begin + BEGIN_MODULE_NAME_OFFSET;
-    bool monFlag = false;
-    if (*modPtr == 'M')
+    if ( memcmp(modPtr, "SP01", MODULE_NAME_LEN) == 0 || memcmp(modPtr, "MON ", MODULE_NAME_LEN) == 0 )
     {
-        if (*(modPtr + 1) == 'O')
-        {
-            if (*(modPtr + 2) == 'N')
-            {
-                dv.flags |= MON_LINE1;
-                monFlag = true;
-            }
-            else if (*(modPtr + 2) == '2')
-            {
-                dv.flags |= MON_LINE2;
-                monFlag = true;
-            }
-            else if (*(modPtr + 2) == '3')
-            {
-                dv.flags |= MON_LINE3;
-                monFlag = true;
-            }
-            else if (*(modPtr + 2) == '4')
-            {
-                dv.flags |= MON_LINE4;
-                monFlag = true;
-            }
-        }
-
-        if (monFlag)
-        {
-            dv.flags |= MON_MODULE;
-        }
-        else
-        {
-            dv.flags |= TEST_MODULE;
-        }
+        dv.flags |= MON_LINE1;
+        dv.flags |= MON_MODULE;
     }
-    else if (memcmp(modPtr, "TM ", MODULE_NAME_LEN) == 0)
+    else if ( memcmp(modPtr, "SP02", MODULE_NAME_LEN) == 0 || memcmp(modPtr, "MO2 ", MODULE_NAME_LEN) == 0 )
+    {
+        dv.flags |= MON_LINE2;
+        dv.flags |= MON_MODULE;
+    }
+    else if ( memcmp(modPtr, "SP03", MODULE_NAME_LEN) == 0 || memcmp(modPtr, "MO3 ", MODULE_NAME_LEN) == 0 )
+    {
+        dv.flags |= MON_LINE3;
+        dv.flags |= MON_MODULE;
+    }
+    else if ( memcmp(modPtr, "SP04", MODULE_NAME_LEN) == 0 || memcmp(modPtr, "MO4 ", MODULE_NAME_LEN) == 0 )
+    {
+        dv.flags |= MON_LINE4;
+        dv.flags |= MON_MODULE;
+    }
+    else if (memcmp(modPtr, "TM  ", MODULE_NAME_LEN) == 0)
     {
         dv.flags |= RTM_MODULE;
     }
-    else if (memcmp(modPtr, "ZLG", MODULE_NAME_LEN) == 0)
+    else if (memcmp(modPtr, "ZLG ", MODULE_NAME_LEN) == 0)
     {
         dv.flags |= ZLG_MODULE;
     }

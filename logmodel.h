@@ -42,7 +42,7 @@ private:
     QVariant HandleDisplayRole(int col, int row) const;
     QVariant headerData(int section, Qt::Orientation orientation, int role) const Q_DECL_OVERRIDE;
     QVariant HandleHeaderDisplayRole(Qt::Orientation orientation, int section) const;
-    bool AnaliseFileFormat(const QString& fname, size_t fSize);
+    bool AnaliseFileFormat(const std::string& fname, size_t fSize);
 
 private:
     const QString file_name;

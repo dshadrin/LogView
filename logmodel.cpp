@@ -20,13 +20,13 @@ quint32 BEGIN_SEVERITY_OFFSET = 35;
 quint32 SEVERITY_LEN = 4;
 quint32 BEGIN_LOG_STRING_OFFSET = 43;
 
-bool LogModel::AnaliseFileFormat(const QString& fName, size_t fSize)
+bool LogModel::AnaliseFileFormat(const std::string& fName, size_t fSize)
 {
     bool status = false;
 
     try
     {
-        std::ifstream ifs(fName.toStdString(), std::ios::binary);
+        std::ifstream ifs(fName, std::ios::binary);
         const size_t blockSize = std::min<size_t>(100, fSize);
         std::string line(blockSize, '\0');
         ifs.read(&line[0], blockSize);
@@ -88,13 +88,14 @@ LogModel::LogModel(const QString& fname, QObject *parent)
     ss << std::endl;
     std::string endOfStr = ss.str();
     size_t endOfStrLen = endOfStr.length();
+    std::string stdFName = fname.toStdString();
 
-    if (boost::filesystem::exists(fname.toStdString()))
+    if (boost::filesystem::exists(stdFName))
     {
-        buffer_size = boost::filesystem::file_size(fname.toStdString());
-        if (AnaliseFileFormat(fname, buffer_size))
+        buffer_size = boost::filesystem::file_size(stdFName);
+        if (AnaliseFileFormat(stdFName, buffer_size))
         {
-            file.open(fname.toStdString(), buffer_size);
+            file.open(stdFName, buffer_size);
             if (file.is_open())
             {
                 const char * buffer = file.data();

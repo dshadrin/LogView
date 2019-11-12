@@ -5,6 +5,7 @@
 #include <QtWidgets>
 #include <QTimer>
 #include <boost/filesystem.hpp>
+#include <boost/algorithm/string_regex.hpp>
 
 QString confName;
 
@@ -34,8 +35,10 @@ LogViewQt::LogViewQt( const QString& fname, QWidget *parent)
     if (!fname.isEmpty())
     {
         QSettings settings(confName, QSettings::IniFormat, Q_NULLPTR);
-        boost::filesystem::path p = boost::filesystem::absolute(boost::filesystem::path(fname.toStdString())).parent_path();
-        settings.setValue("FilesFolder", QString::fromStdString(p.string()));
+        std::string sp = fname.toStdString();
+        boost::filesystem::path p(sp);
+        boost::filesystem::path fp = boost::filesystem::absolute(p).parent_path();
+        settings.setValue("FilesFolder", QString::fromStdString(fp.string()));
     }
 
     createModel( fname );
@@ -106,8 +109,10 @@ void LogViewQt::selectOpenFileName( )
     QFile f( fname );
     if ( f.exists( ) )
     {
-        boost::filesystem::path p = boost::filesystem::absolute(boost::filesystem::path(fname.toStdString())).parent_path();
-        settings.setValue("FilesFolder", QString::fromStdString(p.string()));
+        std::string sp = fname.toStdString();
+        boost::filesystem::path p(sp);
+        boost::filesystem::path fp = boost::filesystem::absolute(p).parent_path();
+        settings.setValue("FilesFolder", QString::fromStdString(fp.string()));
         createModel( fname );
     }
 }
@@ -212,9 +217,14 @@ void LogViewQt::selectText()
     QString data;
     for (auto& sel : selList)
     {
-        data.append(model->data(sel, Qt::DisplayRole).toString());
+        QString line = model->data(sel, Qt::DisplayRole).toString();
+        line.replace('\0', ' ');
+        data.append(line);
         data.append("\n");
     }
+    std::string str = data.toStdString();
+    boost::algorithm::erase_all_regex(str, boost::regex{R"(\x1B\[([0-9]+;)*[0-9]*[m|h|l]{1})"});
+    data = QString::fromStdString(str);
     QClipboard *cb = qApp->clipboard();
     cb->setText(data);
 }

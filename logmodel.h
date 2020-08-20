@@ -7,12 +7,22 @@
 #include <QQueue>
 #include <QTimer>
 
+enum class ELogType : uint8_t
+{
+    EEtfRpcLog,
+
+    ECommonText
+};
+
 class LogModel : public QAbstractTableModel
 {
     Q_OBJECT
 
 public:
     LogModel( const QString& fname, QObject *parent );
+
+    void SetLogFont();
+
     ~LogModel();
 
     int rowCount( const QModelIndex & /*parent*/ ) const Q_DECL_OVERRIDE;
@@ -42,7 +52,7 @@ private:
     QVariant HandleDisplayRole(int col, int row) const;
     QVariant headerData(int section, Qt::Orientation orientation, int role) const Q_DECL_OVERRIDE;
     QVariant HandleHeaderDisplayRole(Qt::Orientation orientation, int section) const;
-    bool AnaliseFileFormat(const std::string& fname, size_t fSize);
+    ELogType AnaliseFileFormat(const std::string& fname, size_t fSize);
 
 private:
     const QString file_name;

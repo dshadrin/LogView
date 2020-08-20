@@ -20,13 +20,13 @@ quint32 BEGIN_SEVERITY_OFFSET = 35;
 quint32 SEVERITY_LEN = 4;
 quint32 BEGIN_LOG_STRING_OFFSET = 43;
 
-bool LogModel::AnaliseFileFormat(const std::string& fName, size_t fSize)
+ELogType LogModel::AnaliseFileFormat(const std::string& fname, size_t fSize)
 {
-    bool status = false;
+    ELogType logType = ELogType::ECommonText;
 
     try
     {
-        std::ifstream ifs(fName, std::ios::binary);
+        std::ifstream ifs(fname, std::ios::binary);
         const size_t blockSize = std::min<size_t>(100, fSize);
         std::string line(blockSize, '\0');
         ifs.read(&line[0], blockSize);
@@ -49,15 +49,30 @@ bool LogModel::AnaliseFileFormat(const std::string& fName, size_t fSize)
             BEGIN_MODULE_NAME_OFFSET = TIMESTAMP_LEN + 3;
             BEGIN_SEVERITY_OFFSET = TIMESTAMP_LEN + MODULE_NAME_LEN + 5;
             TIMESTAMP_LEN = tsLen;
-            status = true;
+            logType = ELogType::EEtfRpcLog;
         }
+//         else // ECommonText
+//         {
+//             BEGIN_LOG_STRING_OFFSET = 0;
+//             FULL_HEADER_LEN = 0;
+//             TIMESTAMP_LEN = 0;
+//             MODULE_NAME_LEN = 0;
+//             SEVERITY_LEN = 0;
+//             quint32 tsLen = 0;
+// 
+//             LAST_HEADER_POS = 0;
+//             BEGIN_TIMESTAMP_OFFSET = 0;
+//             BEGIN_MODULE_NAME_OFFSET = 0;
+//             BEGIN_SEVERITY_OFFSET = 0;
+//             logType = ELogType::ECommonText;
+//         }
     }
     catch (const std::exception&)
     {
 
     }
     
-    return status;
+    return logType;
 }
 
 const quint32 SEVERITY_CRIT = 0x00000001;
@@ -78,6 +93,7 @@ const quint32 TEST_MODULE = 0x00080000;
 //////////////////////////////////////////////////////////////////////////
 LogModel::LogModel(const QString& fname, QObject *parent)
     : file_name(fname)
+    , buffer_size(0)
     , mod_mask(0x00FF0000)
     , mon_mask(0x0000FF00)
     , sev_mask(0x000000FF)
@@ -93,14 +109,16 @@ LogModel::LogModel(const QString& fname, QObject *parent)
     if (boost::filesystem::exists(stdFName))
     {
         buffer_size = boost::filesystem::file_size(stdFName);
-        if (AnaliseFileFormat(stdFName, buffer_size))
+        file.open( stdFName, buffer_size );
+        if (file.is_open())
         {
-            file.open(stdFName, buffer_size);
-            if (file.is_open())
-            {
-                const char * buffer = file.data();
-                const char * const buffer_end = buffer + buffer_size;
+            const char* buffer = file.data();
+            const char* const buffer_end = buffer + buffer_size;
+            ELogType logType = AnaliseFileFormat( stdFName, buffer_size );
 
+
+            if (logType == ELogType::EEtfRpcLog || logType == ELogType::ECommonText)
+            {
                 // parse file
                 if (buffer[0] == '[') // check for correct log
                 {
@@ -123,7 +141,7 @@ LogModel::LogModel(const QString& fname, QObject *parent)
                         else
                         {
                             while (pos < buffer_size && (buffer[pos] == '\r' || buffer[pos] == '\n')) ++pos;
-                            if (((buffer[pos] == '[') &&
+                            if ((pos < buffer_size) && ((buffer[pos] == '[') &&
                                 (buffer + pos + BEGIN_LOG_STRING_OFFSET) <= buffer_end &&
                                  (buffer[pos + LAST_HEADER_POS] == ']')))
                             {
@@ -143,15 +161,8 @@ LogModel::LogModel(const QString& fname, QObject *parent)
                         }
                     }
 
-                    // set fonts
-                    font.setFamily("Courier New");
-                    font.setPointSize(10);
-                    fbold = font;
-                    fbold.setBold(true);
+                    SetLogFont();
                     status = true;
-                    tmr = new QTimer(this);
-                    tmr->setInterval(100);
-                    connect(tmr, SIGNAL(timeout()), this, SLOT(tickTimer()));
                 }
             }
         }
@@ -161,6 +172,19 @@ LogModel::LogModel(const QString& fname, QObject *parent)
     {
         throw std::runtime_error("error file operation");
     }
+}
+
+//////////////////////////////////////////////////////////////////////////
+void LogModel::SetLogFont()
+{
+    // set fonts
+    font.setFamily( "Courier New" );
+    font.setPointSize( 10 );
+    fbold = font;
+    fbold.setBold( true );
+    tmr = new QTimer( this );
+    tmr->setInterval( 100 );
+    connect( tmr, SIGNAL( timeout() ), this, SLOT( tickTimer() ) );
 }
 
 //////////////////////////////////////////////////////////////////////////

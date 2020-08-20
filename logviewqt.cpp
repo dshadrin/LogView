@@ -106,14 +106,21 @@ void LogViewQt::selectOpenFileName( )
     QString folder = settings.value("FilesFolder", QDir::currentPath()).toString();
     QString fname = QFileDialog::getOpenFileName( nullptr, "Open File ...", folder, "*.elog *.log" );
 
-    QFile f( fname );
-    if ( f.exists( ) )
+    try
     {
-        std::string sp = fname.toStdString();
-        boost::filesystem::path p(sp);
-        boost::filesystem::path fp = boost::filesystem::absolute(p).parent_path();
-        settings.setValue("FilesFolder", QString::fromStdString(fp.string()));
-        createModel( fname );
+        QFile f( fname );
+        if (f.exists())
+        {
+            std::string sp = fname.toStdString();
+            boost::filesystem::path p( sp );
+            boost::filesystem::path fp = boost::filesystem::absolute( p ).parent_path();
+            settings.setValue( "FilesFolder", QString::fromStdString( fp.string() ) );
+            createModel( fname );
+        }
+    }
+    catch (const std::exception&)
+    {
+        throw std::runtime_error( "Error open or wrong format " + fname.toStdString() );
     }
 }
 

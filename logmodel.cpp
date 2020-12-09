@@ -220,11 +220,11 @@ QVariant LogModel::data( const QModelIndex &index, int role ) const
     case Qt::BackgroundRole:
         return HandleBackgroundRole(index.column(), index.row());
 
-    case Qt::TextColorRole:
+    case Qt::ForegroundRole: // TextColorRole:
         return HandleTextColorRole(index.column(), index.row());
 
     case Qt::TextAlignmentRole:
-        return Qt::AlignLeft + Qt::AlignVCenter;
+        return QVariant(Qt::AlignLeft | Qt::AlignVCenter);
     }
 
     return QVariant( );
@@ -239,7 +239,7 @@ QVariant LogModel::headerData( int section, Qt::Orientation orientation, int rol
         return HandleHeaderDisplayRole(orientation, section);
 
     case Qt::TextAlignmentRole:
-        return Qt::AlignLeft + Qt::AlignVCenter;
+        return QVariant( Qt::AlignLeft | Qt::AlignVCenter );
 
     case Qt::FontRole:
         return fbold;

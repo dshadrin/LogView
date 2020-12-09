@@ -4,6 +4,7 @@
 #include <QSettings>
 #include <QtWidgets>
 #include <QTimer>
+#include <QScreen>
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string_regex.hpp>
 
@@ -242,7 +243,7 @@ void LogViewQt::readSettings()
     const QByteArray geometry = settings.value("geometry", QByteArray()).toByteArray();
     if (geometry.isEmpty())
     {
-        const QRect availableGeometry = QApplication::desktop()->availableGeometry(this);
+        const QRect availableGeometry = screen()->availableGeometry(); // QApplication::desktop()->availableGeometry(this);
         resize(availableGeometry.width() / 3, availableGeometry.height() / 2);
         move((availableGeometry.width() - width()) / 2,
             (availableGeometry.height() - height()) / 2);

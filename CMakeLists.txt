@@ -11,6 +11,7 @@ if(MSVC)
 elseif(MINGW)
   message(STATUS "Toolset: gcc mingw")
   set(Boost_USE_STATIC_LIBS ON)
+  set(Boost_COMPILER "mgw10")
 elseif(UNIX)
   message(STATUS "Toolset: gcc unix")
   set(Boost_USE_STATIC_LIBS OFF)
@@ -27,25 +28,19 @@ message(STATUS "${Boost_LIBRARIES}")
 if(WIN32)
   if(MSVC)
     message(STATUS "MSVC Version: " ${MSVC_VERSION})
-    if(MSVC12)
-      set(USED_QT_PATH "d:/Qt/5.13.1/msvc2013_64")
-    elseif(${MSVC_VERSION} STRGREATER "1914")
-      set(USED_QT_PATH "d:/Qt/5.13.1/msvc2017_64")
-    else()
-      message(FATAL_ERROR "Unsupported MSVC version")
-    endif()
+    set(USED_QT_PATH "d:/Qt/6.0.0/msvc2019_64")
   elseif(MINGW)
-    set(USED_QT_PATH "d:/Qt/5.13.1/mingw53_32")
+    set(USED_QT_PATH "d:/Qt/6.0.0/mingw81_64")
   endif()
-  set(ENV{CMAKE_PREFIX_PATH} "${USED_QT_PATH}/lib/cmake")
-  message(STATUS "CMAKE_PREFIX_PATH: " $ENV{CMAKE_PREFIX_PATH})
+  set(CMAKE_PREFIX_PATH "${USED_QT_PATH}/lib/cmake")
+  message(STATUS "CMAKE_PREFIX_PATH: " ${CMAKE_PREFIX_PATH})
 endif()
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Qt5 COMPONENTS Gui Core Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Gui Core Widgets REQUIRED)
 
 set(SOURCES
   main.cpp
@@ -69,13 +64,13 @@ set(FORMS
   finddialog.ui
 )
 
-qt5_add_resources(RESOURCES_R ${RESOURCES})
-qt5_wrap_ui(FORM_H ${FORMS})
+qt6_add_resources(RESOURCES_R ${RESOURCES})
+qt6_wrap_ui(FORM_H ${FORMS})
 
 ###
 # App configuration
 ###
 set(DestinationDir ${LogView_SOURCE_DIR}/dist)
 add_executable(LogView WIN32 ${SOURCES} ${HEADERS} ${FORM_H} ${RESOURCES_R})
-target_link_libraries(LogView Qt5::Core Qt5::Gui Qt5::Widgets ${Boost_LIBRARIES})
+target_link_libraries(LogView Qt6::Gui Qt6::Widgets Qt6::Core ${Boost_LIBRARIES})
 install(TARGETS LogView RUNTIME DESTINATION ${DestinationDir})

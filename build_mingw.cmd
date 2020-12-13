@@ -1,6 +1,5 @@
 @echo off
-set PATH=d:\Qt\Tools\mingw530_32\bin;%PATH%
-set BOOST_LIBRARYDIR=d:\usr\lib32
+set PATH=c:\msys64\mingw64\bin;%PATH%
 rmdir /S /Q build
 mkdir build
 cd build

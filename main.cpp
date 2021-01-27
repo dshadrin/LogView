@@ -9,7 +9,13 @@ int main(int argc, char *argv[])
 
     QApplication a( argc, argv );
     QString fname = argc > 1 ? argv[1] : "";
+#ifdef WIN32
     boost::filesystem::path pt( argv[0] );
+#else
+    char buf[512]{0};
+    readlink("/proc/self/exe", buf, 512);
+    boost::filesystem::path pt( buf );
+#endif
     boost::filesystem::path confPath( boost::filesystem::absolute( pt ).replace_extension( "conf" ) );
     QString cPt = QString::fromStdString( boost::filesystem::absolute( pt ).remove_filename().string() );
     confName = QString::fromStdString( confPath.string() );

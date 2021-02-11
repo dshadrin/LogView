@@ -5,6 +5,7 @@
 #include "ui_logviewqt.h"
 #include "logmodel.h"
 #include <boost/filesystem.hpp>
+#include <QComboBox>
 
 extern QString confName;
 
@@ -39,6 +40,7 @@ private slots:
     void customContextMenuRequested(const QPoint &pos);
     void setColumnEnable( quint32 mask );
     void selectTickTimer();
+    void setComboModel( QAbstractItemModel* mdl );
 
 signals:
     int findRow(const QString& txt, int indBegin);
@@ -50,6 +52,7 @@ private:
 
     QMenu* selectMnu;
     QAction* newSelectAct;
+    QComboBox* modules;
 
     // stored find data
     QTimer* checkSelectTimer;

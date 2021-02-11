@@ -2,10 +2,12 @@
 #define LOGMODEL_H
 
 #include <QAbstractTableModel>
+#include <QAbstractItemModel>
 #include <QFont>
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <QQueue>
 #include <QTimer>
+#include <QMap>
 
 enum class ELogType : uint8_t
 {
@@ -39,6 +41,8 @@ const quint32 COLUMN_4_MASK = 0x08;
 const quint32 SEV_MASK = 0x000000FF;
 const quint32 MON_MASK = 0x0000FF00;
 const quint32 MOD_MASK = 0x00FF0000;
+
+class ComboModel;
 
 class LogModel : public QAbstractTableModel
 {
@@ -88,6 +92,7 @@ private:
         const char* begin;
         const char* end;
         quint32 flags;
+        quint32 key;
     };
 
     boost::iostreams::mapped_file_source file;
@@ -102,6 +107,8 @@ private:
     QTimer *tmr;
     QFont font, fbold;
     ELogType logType;
+    QMap<quint32, QString> mapModulesByName;
+    ComboModel* cbModel;
 
 private:
     void SetFlags(DataValue& dv);
@@ -132,6 +139,7 @@ signals:
     void resetRow(int row) const;
     void filterEnable(quint32 mask);
     void setColumnEnable(quint32 mask);
+    void setComboModel( QAbstractItemModel* mdl );
 };
 
 #endif // LOGMODEL_H

@@ -51,12 +51,14 @@ find_package(${QTN} COMPONENTS Core Gui Widgets REQUIRED)
 set(SOURCES
   main.cpp
   logmodel.cpp
+  combomodel.cpp
   logviewqt.cpp
   finddialog.cpp
 )
 
 set(HEADERS
   logmodel.h
+  combomodel.h
   logviewqt.h
   finddialog.h
 )

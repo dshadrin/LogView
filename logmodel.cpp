@@ -1,15 +1,16 @@
 #define _SILENCE_FPOS_SEEKPOS_DEPRECATION_WARNING
 
 #include "logmodel.h"
+#include "combomodel.h"
 #include <boost/filesystem.hpp>
 #include <sstream>
 #include <fstream>
 #include <string>
+#include <algorithm>
 #include <QColor>
 #include <QBrush>
 #include <boost/algorithm/string.hpp>
 #include <boost/regex.hpp>
-#include <boost/range.hpp>
 
 quint32 FULL_HEADER_LEN = 40;
 quint32 LAST_HEADER_POS = 39;
@@ -21,10 +22,12 @@ quint32 BEGIN_SEVERITY_OFFSET = 35;
 quint32 SEVERITY_LEN = 4;
 quint32 BEGIN_LOG_STRING_OFFSET = 43;
 
-static const std::string strExprRpcLog(R"(^((\[(\d{4}-[A-Za-z]{3}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{6})\]\[([A-Z0-9\s]+)\]\[([A-Z ]+)\])\s-\s))");
+static const std::string strExprRpcLog( R"(^((\[(\d{4}-[A-Za-z]{3}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{6})\]\[([A-Z0-9\s]+)\]\[([A-Z ]+)\])\s-\s))" );
+static const std::string strExprRpcLog2( R"(^((\[(\d{2}:\d{2}:\d{2}\.\d{6})\]\[([A-Z0-9\s]+)\]\[([A-Z ]+)\])\s-\s))" );
 static const std::string strExprUartLog( R"(^((\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3})\])\s))" );
 static const std::string strExprDmesgLog( R"(^((\[(\d+\.\d{6})\])\s(.*)$))" );
 static const std::string strExprTestRunnerLog( R"(^(((\d{2}:\d{2}:\d{2},\d{3})\s([A-Z\s]{5}))\s-\s)(.*)$)" );
+std::string strExprRpcLogCurrent;
 
 ELogType LogModel::AnaliseFileFormat(const std::string& fname, size_t fSize)
 {
@@ -37,26 +40,39 @@ ELogType LogModel::AnaliseFileFormat(const std::string& fname, size_t fSize)
         std::string line(blockSize, '\0');
         ifs.read(&line[0], blockSize);
         ifs.close();
+        int logVar = 0;
 
         // remove first empty lines
         boost::algorithm::trim_left_if( line, boost::is_any_of( "\r\n" ) );
-
         boost::smatch what;
-        if (boost::regex_search(line, what, boost::regex(strExprRpcLog)))
+
+        if (boost::regex_search( line, what, boost::regex( strExprRpcLog ) ))
+        {
+            strExprRpcLogCurrent = strExprRpcLog;
+            logVar = 1;
+        }
+        else if (boost::regex_search( line, what, boost::regex( strExprRpcLog2 ) ))
+        {
+            strExprRpcLogCurrent = strExprRpcLog2;
+            logVar = 2;
+        }
+
+        if (logVar)
         {
             BEGIN_LOG_STRING_OFFSET = what[1].length();
             FULL_HEADER_LEN = what[2].length();
             TIMESTAMP_LEN = what[3].length();
             MODULE_NAME_LEN = what[4].length();
             SEVERITY_LEN = what[5].length();
-            quint32 tsLen = 0;
 
             LAST_HEADER_POS = FULL_HEADER_LEN - 1;
-            BEGIN_TIMESTAMP_OFFSET = TIMESTAMP_LEN > 15 ? 13 : 1;
-            tsLen = TIMESTAMP_LEN > 15 ? 15 : TIMESTAMP_LEN;
+            BEGIN_TIMESTAMP_OFFSET = logVar == 1 ? 13 : 1;
             BEGIN_MODULE_NAME_OFFSET = TIMESTAMP_LEN + 3;
             BEGIN_SEVERITY_OFFSET = TIMESTAMP_LEN + MODULE_NAME_LEN + 5;
-            TIMESTAMP_LEN = tsLen;
+            if (logVar == 1)
+            {
+                TIMESTAMP_LEN -= 13;
+            }
             logType = ELogType::EEtfRpcLog;
         }
         else if (boost::regex_search( line, what, boost::regex( strExprTestRunnerLog ) ))
@@ -129,8 +145,9 @@ ELogType LogModel::AnaliseFileFormat(const std::string& fname, size_t fSize)
 }
 
 //////////////////////////////////////////////////////////////////////////
-LogModel::LogModel(const QString& fname, QObject* /*parent*/)
-    : file_name(fname)
+LogModel::LogModel(const QString& fname, QObject* parent)
+    : QAbstractTableModel(parent)
+    , file_name(fname)
     , buffer_size(0)
     , mod_mask(0x00FF0000)
     , mon_mask(0x0000FF00)
@@ -138,6 +155,7 @@ LogModel::LogModel(const QString& fname, QObject* /*parent*/)
     , tmr(Q_NULLPTR)
     , logType(ELogType::ECommonText)
     , colMask(0)
+    , cbModel(nullptr)
 {
     bool status = false;
     std::stringstream ss;
@@ -159,12 +177,12 @@ LogModel::LogModel(const QString& fname, QObject* /*parent*/)
 
             if (logType == ELogType::EEtfRpcLog)
             {
-                boost::regex expr{ strExprRpcLog };
+                boost::regex expr{ strExprRpcLogCurrent };
                 boost::cmatch what;
                 // parse file
                 if (buffer[0] == '[') // check for correct log
                 {
-                    DataValue dv = { nullptr, nullptr, 0 };
+                    DataValue dv = { nullptr, nullptr, 0, 0 };
                     for (size_t pos = 0; pos < buffer_size; ++pos)
                     {
                         if ((buffer[pos] == '[') &&
@@ -211,7 +229,7 @@ LogModel::LogModel(const QString& fname, QObject* /*parent*/)
             }
             else
             {
-                DataValue dv = { nullptr, nullptr, 0 };
+                DataValue dv = { nullptr, nullptr, 0, 0 };
                 for (size_t pos = 0; pos < buffer_size; ++pos)
                 {
                     while (pos < buffer_size && (buffer[pos] == '\r' || buffer[pos] == '\n')) ++pos;
@@ -223,6 +241,44 @@ LogModel::LogModel(const QString& fname, QObject* /*parent*/)
                 }
                 SetLogFont();
                 status = true;
+            }
+        }
+    }
+
+    if (!vstorage.empty() && logType == ELogType::EEtfRpcLog)
+    {
+        QVector<QString> listModules;
+        for (auto& dv : vstorage)
+        {
+            listModules.push_back( QString::fromStdString( std::string( dv.begin + BEGIN_MODULE_NAME_OFFSET, MODULE_NAME_LEN ) ) );
+        }
+        listModules.removeDuplicates();
+        if (!listModules.empty())
+        {
+            listModules.sort();
+            quint32 key = 0;
+            cbModel = new ComboModel();
+            for (auto& name : listModules)
+            {
+                mapModulesByName.insert( ++key, name );
+                cbModel->addItem( name, key );
+            }
+
+            auto setModuleKey = [this]( DataValue& dv )
+            {
+                QString m = QString::fromStdString( std::string( dv.begin + BEGIN_MODULE_NAME_OFFSET, MODULE_NAME_LEN ) );
+                for (quint32 k = 1; k <= mapModulesByName.size(); ++k)
+                {
+                    if (mapModulesByName[k] == m)
+                    {
+                        dv.key = k;
+                    }
+                }
+            };
+
+            for (auto& dv : vstorage)
+            {
+                setModuleKey( dv );
             }
         }
     }
@@ -426,6 +482,13 @@ QVariant LogModel::HandleHeaderDisplayRole(Qt::Orientation orientation, int sect
 //////////////////////////////////////////////////////////////////////////
 void LogModel::ResetData()
 {
+    static bool isModuleNamesSet = false;
+    if (!isModuleNamesSet)
+    {
+        emit setComboModel( cbModel );
+        isModuleNamesSet = true;
+    }
+
     tmr->stop();
     beginResetModel();
     vdata.clear();
@@ -505,7 +568,7 @@ void LogModel::SetFlags(DataValue& dv)
         }
         else if (memcmp( sevPtr, "TEST", 4 ) == 0)
         {
-            ;
+            dv.flags |= SEVERITY_TEST;
         }
         else if (memcmp( sevPtr, "DBG ", 3 ) == 0 || memcmp( sevPtr, "DEBUG ", 5 ) == 0)
         {

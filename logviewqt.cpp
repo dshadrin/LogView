@@ -14,8 +14,12 @@ LogViewQt::LogViewQt( const QString& fname, QWidget *parent)
     : QMainWindow(parent)
     , model(nullptr)
     , foundRow(0)
+    , modules(nullptr)
 {
     ui.setupUi(this);
+    modules = new QComboBox( this );
+    ui.toolBar->addWidget( modules );
+
 	QObject::connect(ui.actionAbout_Qt, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
     QObject::connect(ui.actionOpen, SIGNAL(triggered()), this, SLOT(selectOpenFileName()));
     QObject::connect(ui.actionFind, SIGNAL(triggered()), this, SLOT(findText()));
@@ -59,11 +63,12 @@ void LogViewQt::createModel( const QString& fname )
         ui.centralWidget->setModel( nullptr );
         delete model;
 
-        model = new LogModel( fname, nullptr );
+        model = new LogModel( fname, this );
         QObject::connect(model, SIGNAL(changeModel()), this, SLOT(changeTable()));
         QObject::connect(model, SIGNAL(resetRow(int)), this, SLOT(resetRow(int)));
         QObject::connect( model, SIGNAL( filterEnable( quint32 ) ), this, SLOT( actionEnable( quint32 ) ) );
         QObject::connect( model, SIGNAL( setColumnEnable( quint32 ) ), this, SLOT( setColumnEnable( quint32 ) ) );
+        QObject::connect( model, SIGNAL( setComboModel( QAbstractItemModel * ) ), this, SLOT( setComboModel( QAbstractItemModel * ) ) );
         QObject::connect(this, SIGNAL(findRow(const QString&, int)), model, SLOT(findRow(const QString&, int)));
         QObject::connect(this, SIGNAL(findRowPrev(const QString&, int)), model, SLOT(findRowPrev(const QString&, int)));
         QObject::connect( ui.actionCRIT, SIGNAL( triggered( bool ) ), model, SLOT( switchCrit( bool ) ) );
@@ -90,7 +95,7 @@ void LogViewQt::createModel( const QString& fname )
 
 LogViewQt::~LogViewQt( )
 {
-	delete model;
+// 	delete model;
 }
 
 void LogViewQt::actionEnable(quint32 mask)
@@ -252,6 +257,12 @@ void LogViewQt::selectTickTimer()
         ui.centralWidget->setCurrentIndex(idx);
         findTextNext();
     }
+}
+
+void LogViewQt::setComboModel( QAbstractItemModel* mdl )
+{
+    mdl->setParent( this );
+    modules->setModel( mdl );
 }
 
 void LogViewQt::selectText()

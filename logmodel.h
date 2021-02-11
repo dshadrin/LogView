@@ -10,9 +10,24 @@
 enum class ELogType : uint8_t
 {
     EEtfRpcLog,
-
+    EUartLog,
     ECommonText
 };
+
+const quint32 SEVERITY_CRIT = 0x00000001;
+const quint32 SEVERITY_ERR = 0x00000002;
+const quint32 SEVERITY_WARN = 0x00000004;
+const quint32 SEVERITY_INFO = 0x00000008;
+const quint32 SEVERITY_TEST = 0x00000010;
+const quint32 SEVERITY_DEBUG = 0x00000020;
+const quint32 MON_LINE1 = 0x00000100;
+const quint32 MON_LINE2 = 0x00000200;
+const quint32 MON_LINE3 = 0x00000400;
+const quint32 MON_LINE4 = 0x00000800;
+const quint32 MON_MODULE = 0x00010000;
+const quint32 RTM_MODULE = 0x00020000;
+const quint32 ZLG_MODULE = 0x00040000;
+const quint32 TEST_MODULE = 0x00080000;
 
 class LogModel : public QAbstractTableModel
 {
@@ -74,6 +89,7 @@ private:
     mutable QQueue<QVector<DataValue>::size_type> indxs;
     QTimer *tmr;
     QFont font, fbold;
+    ELogType logType;
 
 private:
     void SetFlags(DataValue& dv);
@@ -101,6 +117,7 @@ private slots:
 signals:
     void changeModel();
     void resetRow(int row) const;
+    void filterEnable(quint32 mask);
 };
 
 #endif // LOGMODEL_H

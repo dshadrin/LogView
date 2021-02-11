@@ -9,6 +9,7 @@
 #include <QBrush>
 #include <boost/algorithm/string.hpp>
 #include <boost/regex.hpp>
+#include <boost/range.hpp>
 
 quint32 FULL_HEADER_LEN = 40;
 quint32 LAST_HEADER_POS = 39;
@@ -19,6 +20,9 @@ quint32 MODULE_NAME_LEN = 3;
 quint32 BEGIN_SEVERITY_OFFSET = 35;
 quint32 SEVERITY_LEN = 4;
 quint32 BEGIN_LOG_STRING_OFFSET = 43;
+
+std::string strExprRpcLog(R"(^((\[(\d{4}-[A-Za-z]{3}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{6})\]\[([A-Z0-9\s]+)\]\[([A-Z ]+)\])\s-\s))");
+std::string strExprUartLog(R"(^((\[(\d{4}-[A-Za-z]{3}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{6})\]\[([A-Z0-9\s]+)\]\[([A-Z ]+)\])\s-\s))");
 
 ELogType LogModel::AnaliseFileFormat(const std::string& fname, size_t fSize)
 {
@@ -32,9 +36,9 @@ ELogType LogModel::AnaliseFileFormat(const std::string& fname, size_t fSize)
         ifs.read(&line[0], blockSize);
         ifs.close();
 
-        boost::regex expr{ "^((\\[([A-Za-z0-9 :.-]+)\\]\\[([A-Z0-9 ]+)\\]\\[([A-Z ]+)\\]) - )" };
+//        boost::regex expr{ strExprRpcLog };
         boost::smatch what;
-        if (boost::regex_search(line, what, expr))
+        if (boost::regex_search(line, what, boost::regex(strExprRpcLog)))
         {
             BEGIN_LOG_STRING_OFFSET = what[1].length();
             FULL_HEADER_LEN = what[2].length();
@@ -51,21 +55,21 @@ ELogType LogModel::AnaliseFileFormat(const std::string& fname, size_t fSize)
             TIMESTAMP_LEN = tsLen;
             logType = ELogType::EEtfRpcLog;
         }
-//         else // ECommonText
-//         {
-//             BEGIN_LOG_STRING_OFFSET = 0;
-//             FULL_HEADER_LEN = 0;
-//             TIMESTAMP_LEN = 0;
-//             MODULE_NAME_LEN = 0;
-//             SEVERITY_LEN = 0;
-//             quint32 tsLen = 0;
-// 
-//             LAST_HEADER_POS = 0;
-//             BEGIN_TIMESTAMP_OFFSET = 0;
-//             BEGIN_MODULE_NAME_OFFSET = 0;
-//             BEGIN_SEVERITY_OFFSET = 0;
-//             logType = ELogType::ECommonText;
-//         }
+         else // ECommonText
+         {
+             BEGIN_LOG_STRING_OFFSET = 0;
+             FULL_HEADER_LEN = 0;
+             TIMESTAMP_LEN = 0;
+             MODULE_NAME_LEN = 0;
+             SEVERITY_LEN = 0;
+             quint32 tsLen = 0;
+
+             LAST_HEADER_POS = 0;
+             BEGIN_TIMESTAMP_OFFSET = 0;
+             BEGIN_MODULE_NAME_OFFSET = 0;
+             BEGIN_SEVERITY_OFFSET = 0;
+             logType = ELogType::ECommonText;
+         }
     }
     catch (const std::exception&)
     {
@@ -75,35 +79,21 @@ ELogType LogModel::AnaliseFileFormat(const std::string& fname, size_t fSize)
     return logType;
 }
 
-const quint32 SEVERITY_CRIT = 0x00000001;
-const quint32 SEVERITY_ERR = 0x00000002;
-const quint32 SEVERITY_WARN = 0x00000004;
-const quint32 SEVERITY_INFO = 0x00000008;
-const quint32 SEVERITY_TEST = 0x00000010;
-const quint32 SEVERITY_DEBUG = 0x00000020;
-const quint32 MON_LINE1 = 0x00000100;
-const quint32 MON_LINE2 = 0x00000200;
-const quint32 MON_LINE3 = 0x00000400;
-const quint32 MON_LINE4 = 0x00000800;
-const quint32 MON_MODULE = 0x00010000;
-const quint32 RTM_MODULE = 0x00020000;
-const quint32 ZLG_MODULE = 0x00040000;
-const quint32 TEST_MODULE = 0x00080000;
-
 //////////////////////////////////////////////////////////////////////////
-LogModel::LogModel(const QString& fname, QObject *parent)
+LogModel::LogModel(const QString& fname, QObject* /*parent*/)
     : file_name(fname)
     , buffer_size(0)
     , mod_mask(0x00FF0000)
     , mon_mask(0x0000FF00)
     , sev_mask(0x000000FF)
     , tmr(Q_NULLPTR)
+    , logType(ELogType::ECommonText)
 {
     bool status = false;
     std::stringstream ss;
     ss << std::endl;
     std::string endOfStr = ss.str();
-    size_t endOfStrLen = endOfStr.length();
+//    size_t endOfStrLen = endOfStr.length();
     std::string stdFName = fname.toStdString();
 
     if (boost::filesystem::exists(stdFName))
@@ -114,15 +104,17 @@ LogModel::LogModel(const QString& fname, QObject *parent)
         {
             const char* buffer = file.data();
             const char* const buffer_end = buffer + buffer_size;
-            ELogType logType = AnaliseFileFormat( stdFName, buffer_size );
+            logType = AnaliseFileFormat( stdFName, buffer_size );
 
 
-            if (logType == ELogType::EEtfRpcLog || logType == ELogType::ECommonText)
+            if (logType == ELogType::EEtfRpcLog)
             {
+                boost::regex expr{ strExprRpcLog };
+                boost::cmatch what;
                 // parse file
                 if (buffer[0] == '[') // check for correct log
                 {
-                    DataValue dv = { nullptr, nullptr };
+                    DataValue dv = { nullptr, nullptr, 0 };
                     for (size_t pos = 0; pos < buffer_size; ++pos)
                     {
                         if ((buffer[pos] == '[') &&
@@ -141,9 +133,11 @@ LogModel::LogModel(const QString& fname, QObject *parent)
                         else
                         {
                             while (pos < buffer_size && (buffer[pos] == '\r' || buffer[pos] == '\n')) ++pos;
-                            if ((pos < buffer_size) && ((buffer[pos] == '[') &&
+                            size_t end = std::min<size_t>(pos + 45, buffer_size);
+                            if ((pos < buffer_size) &&
+                                (buffer[pos] == '[' && boost::regex_search(&buffer[pos], &buffer[end], what, expr)) &&
                                 (buffer + pos + BEGIN_LOG_STRING_OFFSET) <= buffer_end &&
-                                 (buffer[pos + LAST_HEADER_POS] == ']')))
+                                (buffer[pos + LAST_HEADER_POS] == ']'))
                             {
                                 ++dv.end;
                                 vstorage.push_back(dv);
@@ -164,6 +158,22 @@ LogModel::LogModel(const QString& fname, QObject *parent)
                     SetLogFont();
                     status = true;
                 }
+                emit filterEnable(mod_mask | mon_mask | sev_mask);
+            }
+            else if (logType == ELogType::ECommonText)
+            {
+                DataValue dv = { nullptr, nullptr, SEVERITY_DEBUG | TEST_MODULE };
+                for (size_t pos = 0; pos < buffer_size; ++pos)
+                {
+                    while (pos < buffer_size && (buffer[pos] == '\r' || buffer[pos] == '\n')) ++pos;
+                    dv.begin = buffer + pos;
+                    while (pos < buffer_size && (buffer[pos] != '\r' && buffer[pos] != '\n')) ++pos;
+                    dv.end = buffer + pos;
+                    vstorage.push_back(dv);
+                }
+                SetLogFont();
+                status = true;
+                emit filterEnable(0);
             }
         }
     }
@@ -261,7 +271,7 @@ QVariant LogModel::HandleDisplayRole(int col, int row) const
     case 2:
         return QString::fromStdString(std::string(dv->begin + BEGIN_SEVERITY_OFFSET, SEVERITY_LEN));
     case 3:
-        return QString::fromStdString(std::string(dv->begin + BEGIN_LOG_STRING_OFFSET, dv->end));
+        return QString::fromStdString(boost::algorithm::trim_copy_if(std::string(dv->begin + BEGIN_LOG_STRING_OFFSET, dv->end), boost::is_any_of("\r\n")));
     }
     return QVariant();
 }
@@ -364,11 +374,11 @@ void LogModel::ResetData()
     }
     endResetModel();
     tmr->start();
-    changeModel();
+    emit changeModel();
 }
 
 //////////////////////////////////////////////////////////////////////////
-Qt::ItemFlags LogModel::flags(const QModelIndex & index) const
+Qt::ItemFlags LogModel::flags(const QModelIndex& /*index*/) const
 {
     Qt::ItemFlags val = Qt::ItemIsEnabled;
     val |= Qt::ItemIsSelectable;
@@ -402,7 +412,7 @@ void LogModel::SetFlags(DataValue& dv)
     {
         dv.flags |= SEVERITY_TEST;
     }
-    else if (memcmp(sevPtr, "DBG ", SEVERITY_LEN) == 0)
+    else if (memcmp(sevPtr, "DBG ", SEVERITY_LEN) == 0 || SEVERITY_LEN == 0)
     {
         dv.flags |= SEVERITY_DEBUG;
     }
@@ -701,7 +711,7 @@ void LogModel::tickTimer()
     int count = 50;
     while (!indxs.empty() && count--)
     {
-        resetRow(indxs.front());
+        emit resetRow(indxs.front());
         indxs.pop_front();
     }
     indxs.clear();

@@ -34,7 +34,7 @@ private slots:
     void findTextCurent();
     void findTextNext();
     void findTextPrev();
-
+    void actionEnable(quint32 mask);
     void selectText();
     void customContextMenuRequested(const QPoint &pos);
 

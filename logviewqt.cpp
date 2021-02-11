@@ -61,6 +61,7 @@ void LogViewQt::createModel( const QString& fname )
         model = new LogModel( fname, nullptr );
         QObject::connect(model, SIGNAL(changeModel()), this, SLOT(changeTable()));
         QObject::connect(model, SIGNAL(resetRow(int)), this, SLOT(resetRow(int)));
+        QObject::connect(model, SIGNAL(filterEnable(quint32)), this, SLOT(actionEnable(quint32)));
         QObject::connect(this, SIGNAL(findRow(const QString&, int)), model, SLOT(findRow(const QString&, int)));
         QObject::connect(this, SIGNAL(findRowPrev(const QString&, int)), model, SLOT(findRowPrev(const QString&, int)));
         QObject::connect( ui.actionCRIT, SIGNAL( triggered( bool ) ), model, SLOT( switchCrit( bool ) ) );
@@ -88,6 +89,14 @@ void LogViewQt::createModel( const QString& fname )
 LogViewQt::~LogViewQt( )
 {
 	delete model;
+}
+
+void LogViewQt::actionEnable(quint32 mask)
+{
+    ui.actionMonitor_1_Log->setEnabled((mask & MON_LINE1) ? true : false);
+    ui.actionMonitor_2_Log->setEnabled((mask & MON_LINE2) ? true : false);
+    ui.actionMonitor_3_Log->setEnabled((mask & MON_LINE3) ? true : false);
+    ui.actionMonitor_4_Log->setEnabled((mask & MON_LINE4) ? true : false);
 }
 
 void LogViewQt::changeTable()

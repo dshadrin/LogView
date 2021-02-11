@@ -21,8 +21,10 @@ quint32 BEGIN_SEVERITY_OFFSET = 35;
 quint32 SEVERITY_LEN = 4;
 quint32 BEGIN_LOG_STRING_OFFSET = 43;
 
-std::string strExprRpcLog(R"(^((\[(\d{4}-[A-Za-z]{3}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{6})\]\[([A-Z0-9\s]+)\]\[([A-Z ]+)\])\s-\s))");
-std::string strExprUartLog(R"(^((\[(\d{4}-[A-Za-z]{3}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{6})\]\[([A-Z0-9\s]+)\]\[([A-Z ]+)\])\s-\s))");
+static const std::string strExprRpcLog(R"(^((\[(\d{4}-[A-Za-z]{3}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{6})\]\[([A-Z0-9\s]+)\]\[([A-Z ]+)\])\s-\s))");
+static const std::string strExprUartLog( R"(^((\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3})\])\s))" );
+static const std::string strExprDmesgLog( R"(^((\[(\d+\.\d{6})\])\s(.*)$))" );
+static const std::string strExprTestRunnerLog( R"(^(((\d{2}:\d{2}:\d{2},\d{3})\s([A-Z\s]{5}))\s-\s)(.*)$)" );
 
 ELogType LogModel::AnaliseFileFormat(const std::string& fname, size_t fSize)
 {
@@ -36,7 +38,9 @@ ELogType LogModel::AnaliseFileFormat(const std::string& fname, size_t fSize)
         ifs.read(&line[0], blockSize);
         ifs.close();
 
-//        boost::regex expr{ strExprRpcLog };
+        // remove first empty lines
+        boost::algorithm::trim_left_if( line, boost::is_any_of( "\r\n" ) );
+
         boost::smatch what;
         if (boost::regex_search(line, what, boost::regex(strExprRpcLog)))
         {
@@ -55,21 +59,66 @@ ELogType LogModel::AnaliseFileFormat(const std::string& fname, size_t fSize)
             TIMESTAMP_LEN = tsLen;
             logType = ELogType::EEtfRpcLog;
         }
-         else // ECommonText
-         {
-             BEGIN_LOG_STRING_OFFSET = 0;
-             FULL_HEADER_LEN = 0;
-             TIMESTAMP_LEN = 0;
-             MODULE_NAME_LEN = 0;
-             SEVERITY_LEN = 0;
-             quint32 tsLen = 0;
+        else if (boost::regex_search( line, what, boost::regex( strExprTestRunnerLog ) ))
+        {
+            BEGIN_LOG_STRING_OFFSET = what[1].length();
+            FULL_HEADER_LEN = what[2].length();
+            TIMESTAMP_LEN = what[3].length();
+            MODULE_NAME_LEN = 0;
+            SEVERITY_LEN = what[4].length();
+            quint32 tsLen = 0;
 
-             LAST_HEADER_POS = 0;
-             BEGIN_TIMESTAMP_OFFSET = 0;
-             BEGIN_MODULE_NAME_OFFSET = 0;
-             BEGIN_SEVERITY_OFFSET = 0;
-             logType = ELogType::ECommonText;
-         }
+            LAST_HEADER_POS = FULL_HEADER_LEN;
+            BEGIN_TIMESTAMP_OFFSET = 0;
+            BEGIN_MODULE_NAME_OFFSET = 0;
+            BEGIN_SEVERITY_OFFSET = TIMESTAMP_LEN + 1;
+            logType = ELogType::ETestRunnerLog;
+        }
+        else if (boost::regex_search( line, what, boost::regex( strExprUartLog ) ))
+        {
+            BEGIN_LOG_STRING_OFFSET = what[1].length();
+            FULL_HEADER_LEN = what[2].length();
+            TIMESTAMP_LEN = what[3].length();
+            MODULE_NAME_LEN = 0;
+            SEVERITY_LEN = 0;
+
+            LAST_HEADER_POS = FULL_HEADER_LEN - 1;
+            BEGIN_TIMESTAMP_OFFSET = 12;
+            BEGIN_MODULE_NAME_OFFSET = 0;
+            BEGIN_SEVERITY_OFFSET = 0;
+            TIMESTAMP_LEN = 12;
+            logType = ELogType::EUartLog;
+        }
+        else if (boost::regex_search( line, what, boost::regex( strExprDmesgLog ) ))
+        {
+            BEGIN_LOG_STRING_OFFSET = what[1].length();
+            FULL_HEADER_LEN = what[2].length();
+            TIMESTAMP_LEN = what[3].length();
+            MODULE_NAME_LEN = 0;
+            SEVERITY_LEN = 0;
+
+            LAST_HEADER_POS = FULL_HEADER_LEN - 1;
+            BEGIN_TIMESTAMP_OFFSET = 12;
+            BEGIN_MODULE_NAME_OFFSET = 0;
+            BEGIN_SEVERITY_OFFSET = 0;
+            TIMESTAMP_LEN = 12;
+            logType = ELogType::EDmesgLog;
+        }
+        else // ECommonText
+        {
+            BEGIN_LOG_STRING_OFFSET = 0;
+            FULL_HEADER_LEN = 0;
+            TIMESTAMP_LEN = 0;
+            MODULE_NAME_LEN = 0;
+            SEVERITY_LEN = 0;
+            quint32 tsLen = 0;
+
+            LAST_HEADER_POS = 0;
+            BEGIN_TIMESTAMP_OFFSET = 0;
+            BEGIN_MODULE_NAME_OFFSET = 0;
+            BEGIN_SEVERITY_OFFSET = 0;
+            logType = ELogType::ECommonText;
+        }
     }
     catch (const std::exception&)
     {
@@ -160,15 +209,16 @@ LogModel::LogModel(const QString& fname, QObject* /*parent*/)
                     status = true;
                 }
             }
-            else if (logType == ELogType::ECommonText)
+            else
             {
-                DataValue dv = { nullptr, nullptr, SEVERITY_DEBUG | TEST_MODULE };
+                DataValue dv = { nullptr, nullptr, 0 };
                 for (size_t pos = 0; pos < buffer_size; ++pos)
                 {
                     while (pos < buffer_size && (buffer[pos] == '\r' || buffer[pos] == '\n')) ++pos;
                     dv.begin = buffer + pos;
                     while (pos < buffer_size && (buffer[pos] != '\r' && buffer[pos] != '\n')) ++pos;
                     dv.end = buffer + pos;
+                    SetFlags( dv );
                     vstorage.push_back(dv);
                 }
                 SetLogFont();
@@ -226,7 +276,7 @@ QVariant LogModel::data( const QModelIndex &index, int role ) const
         return HandleDisplayRole( colIdx, index.row());
 
     case Qt::FontRole:
-        return (colIdx == 2 ) ? fbold : font;
+        return (colIdx == 2 || colIdx == 0 ) ? fbold : font;
 
     case Qt::BackgroundRole:
         return HandleBackgroundRole( colIdx, index.row());
@@ -265,16 +315,34 @@ QVariant LogModel::headerData( int section, Qt::Orientation orientation, int rol
 QVariant LogModel::HandleDisplayRole(int col, int row) const
 {
     const DataValue * const dv = vdata[row];
-    switch ( col )
+    if (logType == ELogType::EDmesgLog)
     {
-    case 0:
-        return QString::fromStdString(std::string(dv->begin + BEGIN_TIMESTAMP_OFFSET, TIMESTAMP_LEN));
-    case 1:
-        return QString::fromStdString(std::string(dv->begin + BEGIN_MODULE_NAME_OFFSET, MODULE_NAME_LEN));
-    case 2:
-        return QString::fromStdString(std::string(dv->begin + BEGIN_SEVERITY_OFFSET, SEVERITY_LEN));
-    case 3:
-        return QString::fromStdString(boost::algorithm::trim_copy_if(std::string(dv->begin + BEGIN_LOG_STRING_OFFSET, dv->end), boost::is_any_of("\r\n")));
+        static boost::regex expr{ strExprDmesgLog };
+        boost::cmatch what;
+        if (boost::regex_search( dv->begin, dv->end, what, expr ))
+        {
+            switch (col)
+            {
+            case 0:
+                return QString::fromStdString( std::string( what[3] ) );
+            case 3:
+                return QString::fromStdString( std::string( what[4] ) );
+            }
+        }
+    }
+    else
+    {
+        switch (col)
+        {
+        case 0:
+            return QString::fromStdString( std::string( dv->begin + BEGIN_TIMESTAMP_OFFSET, TIMESTAMP_LEN ) );
+        case 1:
+            return QString::fromStdString( std::string( dv->begin + BEGIN_MODULE_NAME_OFFSET, MODULE_NAME_LEN ) );
+        case 2:
+            return QString::fromStdString( std::string( dv->begin + BEGIN_SEVERITY_OFFSET, SEVERITY_LEN ) );
+        case 3:
+            return QString::fromStdString( boost::algorithm::trim_copy_if( std::string( dv->begin + BEGIN_LOG_STRING_OFFSET, dv->end ), boost::is_any_of( "\r\n" ) ) );
+        }
     }
     return QVariant();
 }
@@ -382,11 +450,16 @@ void LogModel::ResetData()
     switch (logType)
     {
     case ELogType::EEtfRpcLog:
-        mask = mod_mask | mon_mask | sev_mask;
+        mask = MOD_MASK | MON_MASK | SEV_MASK;
         colMask = COLUMN_1_MASK | COLUMN_2_MASK | COLUMN_3_MASK | COLUMN_4_MASK;
         break;
     case ELogType::EUartLog:
+    case ELogType::EDmesgLog:
         colMask = COLUMN_1_MASK | COLUMN_4_MASK;
+        break;
+    case ELogType::ETestRunnerLog:
+        mask = SEV_MASK;
+        colMask = COLUMN_1_MASK | COLUMN_3_MASK | COLUMN_4_MASK;
         break;
     case ELogType::ECommonText:
     default:
@@ -411,60 +484,74 @@ void LogModel::SetFlags(DataValue& dv)
 {
     dv.flags = 0;
 
-    const char * const sevPtr = dv.begin + BEGIN_SEVERITY_OFFSET;
-    if (memcmp(sevPtr, "CRIT", SEVERITY_LEN) == 0)
+    if (BEGIN_SEVERITY_OFFSET > 0)
     {
-        dv.flags |= SEVERITY_CRIT;
+        const char* const sevPtr = dv.begin + BEGIN_SEVERITY_OFFSET;
+        if (memcmp( sevPtr, "CRIT", 4 ) == 0)
+        {
+            dv.flags |= SEVERITY_CRIT;
+        }
+        else if (memcmp( sevPtr, "ERR ", 3 ) == 0)
+        {
+            dv.flags |= SEVERITY_ERR;
+        }
+        else if (memcmp( sevPtr, "WARN", 4 ) == 0)
+        {
+            dv.flags |= SEVERITY_WARN;
+        }
+        else if (memcmp( sevPtr, "INFO", 4 ) == 0)
+        {
+            dv.flags |= SEVERITY_INFO;
+        }
+        else if (memcmp( sevPtr, "TEST", 4 ) == 0)
+        {
+            ;
+        }
+        else if (memcmp( sevPtr, "DBG ", 3 ) == 0 || memcmp( sevPtr, "DEBUG ", 5 ) == 0)
+        {
+            dv.flags |= SEVERITY_DEBUG;
+        }
     }
-    else if (memcmp(sevPtr, "ERR ", SEVERITY_LEN) == 0)
-    {
-        dv.flags |= SEVERITY_ERR;
-    }
-    else if (memcmp(sevPtr, "WARN", SEVERITY_LEN) == 0)
-    {
-        dv.flags |= SEVERITY_WARN;
-    }
-    else if (memcmp(sevPtr, "INFO", SEVERITY_LEN) == 0)
-    {
-        dv.flags |= SEVERITY_INFO;
-    }
-    else if (memcmp(sevPtr, "TEST", SEVERITY_LEN) == 0)
+    else
     {
         dv.flags |= SEVERITY_TEST;
     }
-    else if (memcmp(sevPtr, "DBG ", SEVERITY_LEN) == 0 || SEVERITY_LEN == 0)
-    {
-        dv.flags |= SEVERITY_DEBUG;
-    }
 
-    const char * const modPtr = dv.begin + BEGIN_MODULE_NAME_OFFSET;
-    if ( memcmp(modPtr, "SP01", MODULE_NAME_LEN) == 0 || memcmp(modPtr, "MON ", MODULE_NAME_LEN) == 0 )
+    if (BEGIN_MODULE_NAME_OFFSET > 0)
     {
-        dv.flags |= MON_LINE1;
-        dv.flags |= MON_MODULE;
-    }
-    else if ( memcmp(modPtr, "SP02", MODULE_NAME_LEN) == 0 || memcmp(modPtr, "MO2 ", MODULE_NAME_LEN) == 0 )
-    {
-        dv.flags |= MON_LINE2;
-        dv.flags |= MON_MODULE;
-    }
-    else if ( memcmp(modPtr, "SP03", MODULE_NAME_LEN) == 0 || memcmp(modPtr, "MO3 ", MODULE_NAME_LEN) == 0 )
-    {
-        dv.flags |= MON_LINE3;
-        dv.flags |= MON_MODULE;
-    }
-    else if ( memcmp(modPtr, "SP04", MODULE_NAME_LEN) == 0 || memcmp(modPtr, "MO4 ", MODULE_NAME_LEN) == 0 )
-    {
-        dv.flags |= MON_LINE4;
-        dv.flags |= MON_MODULE;
-    }
-    else if (memcmp(modPtr, "TM  ", MODULE_NAME_LEN) == 0)
-    {
-        dv.flags |= RTM_MODULE;
-    }
-    else if (memcmp(modPtr, "ZLG ", MODULE_NAME_LEN) == 0)
-    {
-        dv.flags |= ZLG_MODULE;
+        const char* const modPtr = dv.begin + BEGIN_MODULE_NAME_OFFSET;
+        if (memcmp( modPtr, "SP01", MODULE_NAME_LEN ) == 0 || memcmp( modPtr, "MON ", MODULE_NAME_LEN ) == 0)
+        {
+            dv.flags |= MON_LINE1;
+            dv.flags |= MON_MODULE;
+        }
+        else if (memcmp( modPtr, "SP02", MODULE_NAME_LEN ) == 0 || memcmp( modPtr, "MO2 ", MODULE_NAME_LEN ) == 0)
+        {
+            dv.flags |= MON_LINE2;
+            dv.flags |= MON_MODULE;
+        }
+        else if (memcmp( modPtr, "SP03", MODULE_NAME_LEN ) == 0 || memcmp( modPtr, "MO3 ", MODULE_NAME_LEN ) == 0)
+        {
+            dv.flags |= MON_LINE3;
+            dv.flags |= MON_MODULE;
+        }
+        else if (memcmp( modPtr, "SP04", MODULE_NAME_LEN ) == 0 || memcmp( modPtr, "MO4 ", MODULE_NAME_LEN ) == 0)
+        {
+            dv.flags |= MON_LINE4;
+            dv.flags |= MON_MODULE;
+        }
+        else if (memcmp( modPtr, "TM  ", MODULE_NAME_LEN ) == 0)
+        {
+            dv.flags |= RTM_MODULE;
+        }
+        else if (memcmp( modPtr, "ZLG ", MODULE_NAME_LEN ) == 0)
+        {
+            dv.flags |= ZLG_MODULE;
+        }
+        else
+        {
+            dv.flags |= TEST_MODULE;
+        }
     }
     else
     {
@@ -481,7 +568,12 @@ int LogModel::RecalculateColumnIndex( int idx ) const
     case ELogType::EEtfRpcLog:
         break;
     case ELogType::EUartLog:
+    case ELogType::EDmesgLog:
         if (idx == 1) result = 3;
+        break;
+    case ELogType::ETestRunnerLog:
+        if (idx == 1) result = 2;
+        if (idx == 2) result = 3;
         break;
     case ELogType::ECommonText:
     default:

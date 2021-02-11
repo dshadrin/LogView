@@ -11,6 +11,8 @@ enum class ELogType : uint8_t
 {
     EEtfRpcLog,
     EUartLog,
+    EDmesgLog,
+    ETestRunnerLog,
     ECommonText
 };
 
@@ -33,6 +35,10 @@ const quint32 COLUMN_1_MASK = 0x01;
 const quint32 COLUMN_2_MASK = 0x02;
 const quint32 COLUMN_3_MASK = 0x04;
 const quint32 COLUMN_4_MASK = 0x08;
+
+const quint32 SEV_MASK = 0x000000FF;
+const quint32 MON_MASK = 0x0000FF00;
+const quint32 MOD_MASK = 0x00FF0000;
 
 class LogModel : public QAbstractTableModel
 {

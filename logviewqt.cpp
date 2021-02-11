@@ -42,6 +42,7 @@ LogViewQt::LogViewQt( const QString& fname, QWidget *parent)
         settings.setValue("FilesFolder", QString::fromStdString(fp.string()));
     }
 
+    actionEnable( 0xFFFFFFFF );
     createModel( fname );
 
     checkSelectTimer = new QTimer(this);
@@ -125,7 +126,7 @@ void LogViewQt::selectOpenFileName( )
 {
     QSettings settings(confName, QSettings::IniFormat, Q_NULLPTR);
     QString folder = settings.value("FilesFolder", QDir::currentPath()).toString();
-    QString fname = QFileDialog::getOpenFileName( nullptr, "Open File ...", folder, "*.elog *.log" );
+    QString fname = QFileDialog::getOpenFileName( nullptr, "Open File ...", folder, "Logs (*.log *.elog);;Text files (*.txt);;XML files (*.xml)" );
 
     try
     {

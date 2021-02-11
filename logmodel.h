@@ -29,6 +29,11 @@ const quint32 RTM_MODULE = 0x00020000;
 const quint32 ZLG_MODULE = 0x00040000;
 const quint32 TEST_MODULE = 0x00080000;
 
+const quint32 COLUMN_1_MASK = 0x01;
+const quint32 COLUMN_2_MASK = 0x02;
+const quint32 COLUMN_3_MASK = 0x04;
+const quint32 COLUMN_4_MASK = 0x08;
+
 class LogModel : public QAbstractTableModel
 {
     Q_OBJECT
@@ -84,6 +89,7 @@ private:
     quint32 mod_mask;
     quint32 mon_mask;
     quint32 sev_mask;
+    quint32 colMask;
     QVector<DataValue> vstorage;
     QVector<DataValue*> vdata;
     mutable QQueue<QVector<DataValue>::size_type> indxs;
@@ -93,6 +99,7 @@ private:
 
 private:
     void SetFlags(DataValue& dv);
+    int RecalculateColumnIndex( int idx ) const;
 
 private slots:
     void switchCrit(bool check);
@@ -118,6 +125,7 @@ signals:
     void changeModel();
     void resetRow(int row) const;
     void filterEnable(quint32 mask);
+    void setColumnEnable(quint32 mask);
 };
 
 #endif // LOGMODEL_H

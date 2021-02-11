@@ -37,7 +37,7 @@ private slots:
     void actionEnable(quint32 mask);
     void selectText();
     void customContextMenuRequested(const QPoint &pos);
-
+    void setColumnEnable( quint32 mask );
     void selectTickTimer();
 
 signals:

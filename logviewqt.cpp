@@ -61,7 +61,8 @@ void LogViewQt::createModel( const QString& fname )
         model = new LogModel( fname, nullptr );
         QObject::connect(model, SIGNAL(changeModel()), this, SLOT(changeTable()));
         QObject::connect(model, SIGNAL(resetRow(int)), this, SLOT(resetRow(int)));
-        QObject::connect(model, SIGNAL(filterEnable(quint32)), this, SLOT(actionEnable(quint32)));
+        QObject::connect( model, SIGNAL( filterEnable( quint32 ) ), this, SLOT( actionEnable( quint32 ) ) );
+        QObject::connect( model, SIGNAL( setColumnEnable( quint32 ) ), this, SLOT( setColumnEnable( quint32 ) ) );
         QObject::connect(this, SIGNAL(findRow(const QString&, int)), model, SLOT(findRow(const QString&, int)));
         QObject::connect(this, SIGNAL(findRowPrev(const QString&, int)), model, SLOT(findRowPrev(const QString&, int)));
         QObject::connect( ui.actionCRIT, SIGNAL( triggered( bool ) ), model, SLOT( switchCrit( bool ) ) );
@@ -93,10 +94,20 @@ LogViewQt::~LogViewQt( )
 
 void LogViewQt::actionEnable(quint32 mask)
 {
-    ui.actionMonitor_1_Log->setEnabled((mask & MON_LINE1) ? true : false);
-    ui.actionMonitor_2_Log->setEnabled((mask & MON_LINE2) ? true : false);
-    ui.actionMonitor_3_Log->setEnabled((mask & MON_LINE3) ? true : false);
-    ui.actionMonitor_4_Log->setEnabled((mask & MON_LINE4) ? true : false);
+    ui.actionMonitor_1_Log->setEnabled( (mask & MON_LINE1) ? true : false );
+    ui.actionMonitor_2_Log->setEnabled( (mask & MON_LINE2) ? true : false );
+    ui.actionMonitor_3_Log->setEnabled( (mask & MON_LINE3) ? true : false );
+    ui.actionMonitor_4_Log->setEnabled( (mask & MON_LINE4) ? true : false );
+    ui.actionMonitor_Log->setEnabled( (mask & MON_MODULE) ? true : false );
+    ui.actionTEST_log->setEnabled( (mask & TEST_MODULE) ? true : false );
+    ui.actionZLG_log->setEnabled( (mask & ZLG_MODULE) ? true : false );
+    ui.actionTM_log->setEnabled( (mask & RTM_MODULE) ? true : false );
+    ui.actionCRIT->setEnabled( (mask & SEVERITY_CRIT) ? true : false );
+    ui.actionWARN->setEnabled( (mask & SEVERITY_WARN) ? true : false );
+    ui.actionTEST->setEnabled( (mask & SEVERITY_TEST) ? true : false );
+    ui.actionINFO->setEnabled( (mask & SEVERITY_INFO) ? true : false );
+    ui.actionDEBUG->setEnabled( (mask & SEVERITY_DEBUG) ? true : false );
+    ui.actionERROR->setEnabled( (mask & SEVERITY_ERR) ? true : false );
 }
 
 void LogViewQt::changeTable()
@@ -209,6 +220,22 @@ void LogViewQt::findTextPrev()
 void LogViewQt::customContextMenuRequested(const QPoint &pos)
 {
     selectMnu->exec(ui.centralWidget->mapToGlobal(pos));
+}
+
+
+void LogViewQt::setColumnEnable( quint32 mask )
+{
+    if (mask & COLUMN_1_MASK) ui.centralWidget->showColumn( 1 );
+    else ui.centralWidget->hideColumn( 1 );
+
+    if (mask & COLUMN_2_MASK) ui.centralWidget->showColumn( 2 );
+    else ui.centralWidget->hideColumn( 2 );
+
+    if (mask & COLUMN_3_MASK) ui.centralWidget->showColumn( 3 );
+    else ui.centralWidget->hideColumn( 3 );
+
+    if (mask & COLUMN_4_MASK) ui.centralWidget->showColumn( 4 );
+    else ui.centralWidget->hideColumn( 4 );
 }
 
 void LogViewQt::selectTickTimer()

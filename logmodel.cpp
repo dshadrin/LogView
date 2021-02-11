@@ -88,6 +88,7 @@ LogModel::LogModel(const QString& fname, QObject* /*parent*/)
     , sev_mask(0x000000FF)
     , tmr(Q_NULLPTR)
     , logType(ELogType::ECommonText)
+    , colMask(0)
 {
     bool status = false;
     std::stringstream ss;
@@ -158,7 +159,6 @@ LogModel::LogModel(const QString& fname, QObject* /*parent*/)
                     SetLogFont();
                     status = true;
                 }
-                emit filterEnable(mod_mask | mon_mask | sev_mask);
             }
             else if (logType == ELogType::ECommonText)
             {
@@ -173,7 +173,6 @@ LogModel::LogModel(const QString& fname, QObject* /*parent*/)
                 }
                 SetLogFont();
                 status = true;
-                emit filterEnable(0);
             }
         }
     }
@@ -218,20 +217,22 @@ int LogModel::columnCount( const QModelIndex & /*parent*/ ) const
 //////////////////////////////////////////////////////////////////////////
 QVariant LogModel::data( const QModelIndex &index, int role ) const
 {
+    int colIdx = RecalculateColumnIndex( index.column() );
+
     switch ( role )
     {
     case Qt::EditRole:
     case Qt::DisplayRole:
-        return HandleDisplayRole(index.column(), index.row());
+        return HandleDisplayRole( colIdx, index.row());
 
     case Qt::FontRole:
-        return (index.column() == 2 ) ? fbold : font;
+        return (colIdx == 2 ) ? fbold : font;
 
     case Qt::BackgroundRole:
-        return HandleBackgroundRole(index.column(), index.row());
+        return HandleBackgroundRole( colIdx, index.row());
 
     case Qt::ForegroundRole: // TextColorRole:
-        return HandleTextColorRole(index.column(), index.row());
+        return HandleTextColorRole( colIdx, index.row());
 
     case Qt::TextAlignmentRole:
         return QVariant(Qt::AlignLeft | Qt::AlignVCenter);
@@ -243,10 +244,12 @@ QVariant LogModel::data( const QModelIndex &index, int role ) const
 //////////////////////////////////////////////////////////////////////////
 QVariant LogModel::headerData( int section, Qt::Orientation orientation, int role ) const
 {
+    int colIdx = RecalculateColumnIndex( section );
+
     switch ( role )
     {
     case Qt::DisplayRole:
-        return HandleHeaderDisplayRole(orientation, section);
+        return HandleHeaderDisplayRole(orientation, colIdx );
 
     case Qt::TextAlignmentRole:
         return QVariant( Qt::AlignLeft | Qt::AlignVCenter );
@@ -340,13 +343,13 @@ QVariant LogModel::HandleHeaderDisplayRole(Qt::Orientation orientation, int sect
         switch ( section )
         {
         case 0:
-            return QString("TimeStamp");
+            return QString( "TimeStamp" );
         case 1:
-            return QString("Module");
+            return QString( "Module" );
         case 2:
-            return QString("Severity");
+            return QString( "Severity" );
         case 3:
-            return QString("Data");
+            return QString( "Data" );
         }
     }
     return QVariant();
@@ -375,6 +378,23 @@ void LogModel::ResetData()
     endResetModel();
     tmr->start();
     emit changeModel();
+    quint32 mask = 0;
+    switch (logType)
+    {
+    case ELogType::EEtfRpcLog:
+        mask = mod_mask | mon_mask | sev_mask;
+        colMask = COLUMN_1_MASK | COLUMN_2_MASK | COLUMN_3_MASK | COLUMN_4_MASK;
+        break;
+    case ELogType::EUartLog:
+        colMask = COLUMN_1_MASK | COLUMN_4_MASK;
+        break;
+    case ELogType::ECommonText:
+    default:
+        colMask = COLUMN_4_MASK;
+        break;
+    }
+    emit filterEnable( mask );
+    emit setColumnEnable( colMask );
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -450,6 +470,25 @@ void LogModel::SetFlags(DataValue& dv)
     {
         dv.flags |= TEST_MODULE;
     }
+}
+
+
+int LogModel::RecalculateColumnIndex( int idx ) const
+{
+    int result = idx;
+    switch (logType)
+    {
+    case ELogType::EEtfRpcLog:
+        break;
+    case ELogType::EUartLog:
+        if (idx == 1) result = 3;
+        break;
+    case ELogType::ECommonText:
+    default:
+        result = 3;
+        break;
+    }
+    return result;
 }
 
 //////////////////////////////////////////////////////////////////////////

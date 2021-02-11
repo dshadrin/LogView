@@ -156,12 +156,10 @@ LogModel::LogModel(const QString& fname, QObject* parent)
     , logType(ELogType::ECommonText)
     , colMask(0)
     , cbModel(nullptr)
+    , keyModule(0)
+    , isModuleNamesSet(false)
 {
     bool status = false;
-    std::stringstream ss;
-    ss << std::endl;
-    std::string endOfStr = ss.str();
-//    size_t endOfStrLen = endOfStr.length();
     std::string stdFName = fname.toStdString();
 
     if (boost::filesystem::exists(stdFName))
@@ -180,58 +178,44 @@ LogModel::LogModel(const QString& fname, QObject* parent)
                 boost::regex expr{ strExprRpcLogCurrent };
                 boost::cmatch what;
                 // parse file
-                if (buffer[0] == '[') // check for correct log
+                for (size_t pos = 0; pos < buffer_size;)
                 {
                     DataValue dv = { nullptr, nullptr, 0, 0 };
-                    for (size_t pos = 0; pos < buffer_size; ++pos)
+                    size_t old = pos;
+                    while (pos < buffer_size && (buffer[pos] != '[')) ++pos;
+                    if (boost::regex_search( buffer + pos, buffer + std::min<size_t>( pos + 50, buffer_size ), what, expr ))
                     {
-                        if ((buffer[pos] == '[') &&
-                            (buffer + pos + BEGIN_LOG_STRING_OFFSET) <= buffer_end &&
-                            (buffer[pos + LAST_HEADER_POS] == ']'))
-                        {
-                            dv.begin = buffer + pos;
-                            pos += BEGIN_LOG_STRING_OFFSET;
-                            dv.end = buffer + pos;
-                            SetFlags(dv);
-                        }
-                        else if (buffer[pos] != '\r' && buffer[pos] != '\n')
-                        {
-                            ++dv.end;
-                        }
-                        else
-                        {
-                            while (pos < buffer_size && (buffer[pos] == '\r' || buffer[pos] == '\n')) ++pos;
-                            size_t end = std::min<size_t>(pos + 45, buffer_size);
-                            if ((pos < buffer_size) &&
-                                (buffer[pos] == '[' && boost::regex_search(&buffer[pos], &buffer[end], what, expr)) &&
-                                (buffer + pos + BEGIN_LOG_STRING_OFFSET) <= buffer_end &&
-                                (buffer[pos + LAST_HEADER_POS] == ']'))
-                            {
-                                ++dv.end;
-                                vstorage.push_back(dv);
-                                --pos;
-                            }
-                            else if (pos >= buffer_size)
-                            {
-                                ++dv.end;
-                                vstorage.push_back(dv);
-                            }
-                            else
-                            {
-                                dv.end = buffer + pos;
-                            }
-                        }
+                        dv.begin = buffer + pos;
+                        while (pos < buffer_size && (buffer[pos] != '\r' && buffer[pos] != '\n')) ++pos;
+                        dv.end = buffer + pos;
                     }
-
-                    SetLogFont();
-                    status = true;
+                    else
+                    {
+                        break;
+                    }
+                    iteration:
+                    while (pos < buffer_size && (buffer[pos] == '\r' || buffer[pos] == '\n')) ++pos;
+                    if (boost::regex_search( buffer + pos, buffer + std::min<size_t>( pos + 50, buffer_size ), what, expr ) || buffer_size == pos)
+                    {
+                        SetFlags( dv );
+                        vstorage.push_back( dv );
+                    }
+                    else
+                    {
+                        while (pos < buffer_size && (buffer[pos] != '\r' && buffer[pos] != '\n')) ++pos;
+                        dv.end = buffer + pos;
+                        goto iteration;
+                    }
                 }
+
+                SetLogFont();
+                status = true;
             }
             else
             {
-                DataValue dv = { nullptr, nullptr, 0, 0 };
                 for (size_t pos = 0; pos < buffer_size; ++pos)
                 {
+                    DataValue dv = { nullptr, nullptr, 0, 0 };
                     while (pos < buffer_size && (buffer[pos] == '\r' || buffer[pos] == '\n')) ++pos;
                     dv.begin = buffer + pos;
                     while (pos < buffer_size && (buffer[pos] != '\r' && buffer[pos] != '\n')) ++pos;
@@ -247,26 +231,32 @@ LogModel::LogModel(const QString& fname, QObject* parent)
 
     if (!vstorage.empty() && logType == ELogType::EEtfRpcLog)
     {
-        QVector<QString> listModules;
+        std::vector<std::string> listModules;
         for (auto& dv : vstorage)
         {
-            listModules.push_back( QString::fromStdString( std::string( dv.begin + BEGIN_MODULE_NAME_OFFSET, MODULE_NAME_LEN ) ) );
+            std::string n( dv.begin + BEGIN_MODULE_NAME_OFFSET, MODULE_NAME_LEN );
+            if (n == "18." || n == "the" || n == "[sh" || n == "5][")
+            {
+                continue;
+            }
+            listModules.emplace_back( dv.begin + BEGIN_MODULE_NAME_OFFSET, MODULE_NAME_LEN );
         }
-        listModules.removeDuplicates();
+        std::sort( listModules.begin(), listModules.end() );
+        auto last = std::unique( listModules.begin(), listModules.end() );
+        listModules.erase( last, listModules.end() );
         if (!listModules.empty())
         {
-            listModules.sort();
             quint32 key = 0;
             cbModel = new ComboModel();
             for (auto& name : listModules)
             {
-                mapModulesByName.insert( ++key, name );
-                cbModel->addItem( name, key );
+                mapModulesByName.insert( std::make_pair( ++key, name ) );
+                cbModel->addItem( QString::fromStdString(name), key );
             }
 
             auto setModuleKey = [this]( DataValue& dv )
             {
-                QString m = QString::fromStdString( std::string( dv.begin + BEGIN_MODULE_NAME_OFFSET, MODULE_NAME_LEN ) );
+                std::string m( dv.begin + BEGIN_MODULE_NAME_OFFSET, MODULE_NAME_LEN );
                 for (quint32 k = 1; k <= mapModulesByName.size(); ++k)
                 {
                     if (mapModulesByName[k] == m)
@@ -306,6 +296,7 @@ void LogModel::SetLogFont()
 LogModel::~LogModel()
 {
     file.close();
+    delete cbModel;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -482,7 +473,6 @@ QVariant LogModel::HandleHeaderDisplayRole(Qt::Orientation orientation, int sect
 //////////////////////////////////////////////////////////////////////////
 void LogModel::ResetData()
 {
-    static bool isModuleNamesSet = false;
     if (!isModuleNamesSet)
     {
         emit setComboModel( cbModel );
@@ -495,13 +485,16 @@ void LogModel::ResetData()
     indxs.clear();
     for (DataValue& dv : vstorage)
     {
-        if (dv.flags & mod_mask)
+        if (keyModule == 0 || keyModule == dv.key)
         {
-            if (dv.flags & sev_mask)
+            if (dv.flags & mod_mask)
             {
-                if (!(dv.flags & MON_MODULE) || (dv.flags & mon_mask))
+                if (dv.flags & sev_mask)
                 {
-                    vdata.push_back(&dv);
+                    if (!(dv.flags & MON_MODULE) || (dv.flags & mon_mask))
+                    {
+                        vdata.push_back( &dv );
+                    }
                 }
             }
         }
@@ -897,6 +890,12 @@ void LogModel::SetFlagTm(bool check)
 void LogModel::switchZlg(bool check)
 {
     SetFlagZlg(check);
+    ResetData();
+}
+
+void LogModel::switchModule( int key )
+{
+    keyModule = key;
     ResetData();
 }
 

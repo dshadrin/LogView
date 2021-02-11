@@ -49,12 +49,10 @@ class LogModel : public QAbstractTableModel
     Q_OBJECT
 
 public:
-    LogModel( const QString& fname, QObject *parent );
+    LogModel( const QString& fname, QObject *parent = nullptr );
+    virtual ~LogModel();
 
     void SetLogFont();
-
-    ~LogModel();
-
     int rowCount( const QModelIndex & /*parent*/ ) const Q_DECL_OVERRIDE;
     int columnCount( const QModelIndex & /*parent*/ ) const Q_DECL_OVERRIDE;
     QVariant data( const QModelIndex &index, int role ) const Q_DECL_OVERRIDE;
@@ -107,8 +105,10 @@ private:
     QTimer *tmr;
     QFont font, fbold;
     ELogType logType;
-    QMap<quint32, QString> mapModulesByName;
+    std::map<uint32_t, std::string> mapModulesByName;
     ComboModel* cbModel;
+    quint32 keyModule;
+    bool isModuleNamesSet;
 
 private:
     void SetFlags(DataValue& dv);
@@ -129,6 +129,7 @@ private slots:
     void switchRpc(bool check);
     void switchTm(bool check);
     void switchZlg(bool check);
+    void switchModule( int key );
 
     void tickTimer();
     int findRow(const QString& txt, int indBegin);

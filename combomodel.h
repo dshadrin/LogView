@@ -9,7 +9,7 @@ class ComboModel : public QAbstractTableModel
 
 public:
     ComboModel( QObject *parent = nullptr );
-    ~ComboModel();
+    virtual ~ComboModel();
 
     int rowCount( const QModelIndex & /*parent*/ ) const Q_DECL_OVERRIDE;
     int columnCount( const QModelIndex & /*parent*/ ) const Q_DECL_OVERRIDE;

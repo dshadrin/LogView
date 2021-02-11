@@ -60,10 +60,11 @@ void LogViewQt::createModel( const QString& fname )
 
     if ( !fname.isEmpty( ) )
     {
+        modules->setModel( nullptr );
         ui.centralWidget->setModel( nullptr );
         delete model;
 
-        model = new LogModel( fname, this );
+        model = new LogModel( fname );
         QObject::connect(model, SIGNAL(changeModel()), this, SLOT(changeTable()));
         QObject::connect(model, SIGNAL(resetRow(int)), this, SLOT(resetRow(int)));
         QObject::connect( model, SIGNAL( filterEnable( quint32 ) ), this, SLOT( actionEnable( quint32 ) ) );
@@ -85,6 +86,7 @@ void LogViewQt::createModel( const QString& fname )
         QObject::connect(ui.actionMonitor_2_Log, SIGNAL(triggered(bool)), model, SLOT(switchMo2(bool)));
         QObject::connect(ui.actionMonitor_3_Log, SIGNAL(triggered(bool)), model, SLOT(switchMo3(bool)));
         QObject::connect(ui.actionMonitor_4_Log, SIGNAL(triggered(bool)), model, SLOT(switchMo4(bool)));
+        QObject::connect( modules, SIGNAL( activated( int ) ), model, SLOT( switchModule( int ) ) );
 
         ui.centralWidget->setModel(model);
         stModelFlags();
@@ -95,7 +97,7 @@ void LogViewQt::createModel( const QString& fname )
 
 LogViewQt::~LogViewQt( )
 {
-// 	delete model;
+ 	delete model;
 }
 
 void LogViewQt::actionEnable(quint32 mask)
@@ -261,7 +263,6 @@ void LogViewQt::selectTickTimer()
 
 void LogViewQt::setComboModel( QAbstractItemModel* mdl )
 {
-    mdl->setParent( this );
     modules->setModel( mdl );
 }
 

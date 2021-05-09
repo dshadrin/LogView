@@ -1,6 +1,6 @@
 #define _SILENCE_FPOS_SEEKPOS_DEPRECATION_WARNING
 
-#include "ComboModel.h"
+#include "combomodel.h"
 //////////////////////////////////////////////////////////////////////////
 ComboModel::ComboModel(QObject* parent) :
     QAbstractTableModel(parent)

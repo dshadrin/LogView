@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
 project(LogView LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 20)
 
 ###
-# Boost configuration
+# Boost & other configuration
 ###
 if(MSVC)
   message(STATUS "Toolset: MSVC")
@@ -11,12 +12,13 @@ if(MSVC)
 elseif(MINGW)
   message(STATUS "Toolset: gcc mingw")
   set(Boost_USE_STATIC_LIBS ON)
-  set(Boost_COMPILER "mgw81")
+  #set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -static")
 elseif(UNIX)
   message(STATUS "Toolset: gcc unix")
   set(Boost_USE_STATIC_LIBS ON)
 endif()
 set(Boost_USE_MULTITHREADED ON)
+set(Boost_NO_BOOST_CMAKE ON)
 
 find_package(Boost 1.79 COMPONENTS system filesystem iostreams regex REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
@@ -42,7 +44,6 @@ endif()
 set(CMAKE_PREFIX_PATH "${USED_QT_PATH}/lib/cmake")
 message(STATUS "CMAKE_PREFIX_PATH: " ${CMAKE_PREFIX_PATH})
 
-set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
